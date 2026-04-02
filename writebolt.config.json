@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "content_dir": "content/blog",
+  "format": "mdx",
+  "image_dir": "public/images/blog",
+  "frontmatter_schema": {
+    "headline": "string",
+    "slug": "string",
+    "excerpt": "string",
+    "author_id": "string",
+    "category": "string",
+    "tags": "string[]",
+    "featured_image": "string",
+    "featured_image_alt": "string",
+    "seo_title": "string",
+    "seo_description": "string",
+    "status": "string",
+    "published_at": "datetime"
+  },
+  "supabase_sync": {
+    "enabled": true,
+    "table": "articles"
+  },
+  "naming_convention": "slug"
+}

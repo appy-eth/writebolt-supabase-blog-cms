@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Env (never commit secrets)
+.env.local
+.env.*.local
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+
+# Debug
+npm-debug.log*
+
+# Secrets
+*.pem
+
+# Vercel
+.vercel
