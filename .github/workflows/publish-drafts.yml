@@ -1,0 +1,53 @@
+name: Publish scheduled drafts
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # Daily at 6:00 UTC
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish due drafts
+        run: |
+          set -euo pipefail
+          TODAY=$(date -u +%Y-%m-%d)
+          PUBLISHED=0
+          mkdir -p content/posts
+
+          shopt -s nullglob
+          for file in content/drafts/*.md content/drafts/*.mdx; do
+            [ -f "$file" ] || continue
+
+            PUB_DATE=$(awk '/^publishDate:/{ sub(/^publishDate:[[:space:]]*/, ""); gsub(/"/, ""); print; exit }' "$file" | tr -d '\r')
+            if [ -z "$PUB_DATE" ]; then
+              echo "Skip (no publishDate): $file"
+              continue
+            fi
+
+            if [[ "$PUB_DATE" > "$TODAY" ]]; then
+              echo "Not yet due ($PUB_DATE > $TODAY): $file"
+              continue
+            fi
+
+            FILENAME=$(basename "$file")
+            sed -i '/^draft:[[:space:]]*true[[:space:]]*$/d' "$file"
+            mv "$file" "content/posts/$FILENAME"
+            PUBLISHED=$((PUBLISHED + 1))
+            echo "Published: $FILENAME (scheduled for $PUB_DATE)"
+          done
+
+          if [ "$PUBLISHED" -gt 0 ]; then
+            git config user.name "Writebolt Scheduler"
+            git config user.email "scheduler@writebolt.app"
+            git add -A
+            git commit -m "chore: publish $PUBLISHED scheduled article(s)"
+            git push
+          else
+            echo "No drafts due for publishing today."
+          fi

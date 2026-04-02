@@ -12,6 +12,8 @@
 <p align="center">
   <a href="#standalone-blog">Standalone Blog</a> ·
   <a href="#add-to-existing-app">Add to Existing App</a> ·
+  <a href="#scheduled-publishing">Scheduled publishing</a> ·
+  <a href="#writebolt-ads-optional">Ads (optional)</a> ·
   <a href="#features">Features</a> ·
   <a href="#ai-writing-assist">AI Writing</a> ·
   <a href="https://writebolt.com">Writebolt Pro →</a>
@@ -137,6 +139,55 @@ Switch anytime in `/admin/settings` → Layout. No code changes, takes effect im
 
 ---
 
+## Scheduled publishing
+
+Put Markdown or MDX files in **`content/drafts/`** with a **`publishDate`** in the frontmatter (and optionally `draft: true`). Published file-based posts live in **`content/posts/`** (see `writebolt.config.json` → `content_dir`).
+
+**GitHub Action:** [`.github/workflows/publish-drafts.yml`](.github/workflows/publish-drafts.yml) runs **daily at 6:00 UTC** (and can be triggered manually under **Actions → Publish scheduled drafts → Run workflow**). It moves any draft whose `publishDate` is today or in the past into `content/posts/`, strips `draft: true` from frontmatter, and commits the result.
+
+Example frontmatter:
+
+```markdown
+---
+title: "Why Edge Computing Matters in 2026"
+slug: "edge-computing-2026"
+publishDate: "2026-04-15"
+tags: ["edge", "cloud", "infrastructure"]
+draft: true
+---
+
+Article content here…
+```
+
+**Workflow:** create `content/drafts/my-article.mdx` → set `publishDate` → commit and push. On the due date, the Action publishes the file automatically.
+
+**Local preview:** in development only, visit [`/drafts`](http://localhost:3000/drafts) to see upcoming scheduled files. This route **404s in production**.
+
+> **Note:** The live blog UI reads articles from **Supabase** by default. File-based `content/posts` is for Git-based workflows (e.g. PRs from Writebolt) and the scheduled-draft Action. Sync MDX into your database if you want posts to appear in the app without a separate import step.
+
+---
+
+## Writebolt ads (optional)
+
+The template includes **`components/WriteboltAd.tsx`** — an opt-in ad unit that calls the Writebolt ads API when it exists. It is **not** inserted into any layout by default.
+
+1. Register your site at [writebolt.app](https://writebolt.app) to get a **Site ID** (when registration opens).
+2. Import and place the component where you want ads:
+
+```tsx
+import { WriteboltAd } from "@/components/WriteboltAd";
+
+<WriteboltAd placement="in-article" siteId="your-site-id" />
+<WriteboltAd placement="sidebar" siteId="your-site-id" />
+<WriteboltAd placement="footer" siteId="your-site-id" />
+```
+
+Revenue share is **60% site owner / 40% Writebolt** when a `siteId` is set. Without `siteId`, house ads may still serve; revenue stays with Writebolt.
+
+If the API is unreachable or returns no ad, the component renders **nothing** (no empty boxes). Optional env override: `NEXT_PUBLIC_WRITEBOLT_ADS_API_URL` (defaults to `https://api.writebolt.app`).
+
+---
+
 ## Features
 
 ### Blog Frontend
@@ -207,8 +258,13 @@ Switch in `/admin/settings` → Image Storage.
 ## Project Structure
 
 ```
+content/
+├── drafts/                  # Scheduled MD/MDX (GitHub Action → posts/)
+└── posts/                   # Published file-based posts (writebolt.config.json)
+
 app/
 ├── blog/                    # Blog frontend
+├── drafts/                  # Dev-only preview of scheduled drafts (/drafts)
 ├── authors/                 # Author profiles
 ├── admin/                   # CMS admin panel
 │   ├── categories/          # Category management
@@ -222,6 +278,7 @@ app/
 └── sitemap.xml/             # Dynamic sitemap
 
 components/
+├── WriteboltAd.tsx          # Optional Writebolt ad network (not used by default)
 ├── blog/                    # Article cards, progress bar, TOC, search
 ├── admin/                   # Editor, AI toolbar, media library
 ├── callouts/                # CTA, lead magnet, newsletter
@@ -251,6 +308,9 @@ SETTINGS_ENCRYPTION_KEY=  # auto-generated during setup
 # Optional (can also be set in /admin/settings/ai)
 OPENAI_API_KEY=sk-...
 REPLICATE_API_KEY=r8_...
+
+# Optional — Writebolt ads API base URL (default: https://api.writebolt.app)
+# NEXT_PUBLIC_WRITEBOLT_ADS_API_URL=https://api.writebolt.app
 ```
 
 ---

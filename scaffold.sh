@@ -74,7 +74,8 @@ mkdir -p lib/utils
 # OTHER DIRECTORIES
 # =============================================================================
 
-mkdir -p content/blog
+mkdir -p content/posts
+mkdir -p content/drafts
 mkdir -p scripts
 mkdir -p public/images/blog
 mkdir -p supabase/migrations
@@ -211,7 +212,7 @@ touch scripts/seed.ts
 # =============================================================================
 
 # Example article
-cat > content/blog/getting-started.mdx << 'MDXEOF'
+cat > content/posts/getting-started.mdx << 'MDXEOF'
 ---
 headline: "Getting Started with Your Writebolt Blog"
 slug: "getting-started"
@@ -256,7 +257,7 @@ MDXEOF
 cat > writebolt.config.json << 'CONFIGEOF'
 {
   "version": 1,
-  "content_dir": "content/blog",
+  "content_dir": "content/posts",
   "format": "mdx",
   "image_dir": "public/images/blog",
   "frontmatter_schema": {

@@ -69,6 +69,7 @@ export async function getPublishedArticles(options?: {
   const limit = options?.limit ?? 10;
   const offset = options?.offset ?? 0;
 
+  // Only published articles (excludes draft + archived)
   let query = supabase
     .from("articles")
     .select("*, author:authors(*)", { count: "exact" })
