@@ -1,20 +1,34 @@
-import { createClient } from "./server";
+import { createServiceRoleClient } from "./service";
 import type { Article, BlogSettings, Category, NavItem } from "@/types";
+
+function db() {
+  return createServiceRoleClient();
+}
 
 // ── Articles ───────────────────────────────────────────────
 
-export async function getAllArticles(): Promise<Article[]> {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("articles")
-    .select("*, author:authors(*)")
-    .order("updated_at", { ascending: false });
+export async function getAllArticles(
+  statusFilter?: string
+): Promise<Article[]> {
+  const supabase = db();
+  let q = supabase.from("articles").select("*, author:authors(*)");
 
+  if (statusFilter && statusFilter !== "all") {
+    q = q.eq("status", statusFilter);
+  }
+
+  if (statusFilter === "scheduled") {
+    q = q.order("scheduled_date", { ascending: true, nullsFirst: false });
+  } else {
+    q = q.order("updated_at", { ascending: false });
+  }
+
+  const { data } = await q;
   return (data ?? []) as Article[];
 }
 
 export async function getArticleById(id: string): Promise<Article | null> {
-  const supabase = createClient();
+  const supabase = db();
   const { data } = await supabase
     .from("articles")
     .select("*, author:authors(*)")
@@ -27,7 +41,7 @@ export async function getArticleById(id: string): Promise<Article | null> {
 export async function createArticle(
   article: Partial<Article>
 ): Promise<Article | null> {
-  const supabase = createClient();
+  const supabase = db();
   const { data, error } = await supabase
     .from("articles")
     .insert(article)
@@ -45,7 +59,7 @@ export async function updateArticle(
   id: string,
   updates: Partial<Article>
 ): Promise<Article | null> {
-  const supabase = createClient();
+  const supabase = db();
   const { data, error } = await supabase
     .from("articles")
     .update(updates)
@@ -61,7 +75,7 @@ export async function updateArticle(
 }
 
 export async function deleteArticle(id: string): Promise<boolean> {
-  const supabase = createClient();
+  const supabase = db();
   const { error } = await supabase.from("articles").delete().eq("id", id);
   return !error;
 }
@@ -71,7 +85,7 @@ export async function deleteArticle(id: string): Promise<boolean> {
 export async function createCategory(
   category: Partial<Category>
 ): Promise<Category | null> {
-  const supabase = createClient();
+  const supabase = db();
   const { data, error } = await supabase
     .from("categories")
     .insert(category)
@@ -89,7 +103,7 @@ export async function updateCategory(
   id: string,
   updates: Partial<Category>
 ): Promise<Category | null> {
-  const supabase = createClient();
+  const supabase = db();
   const { data, error } = await supabase
     .from("categories")
     .update(updates)
@@ -105,8 +119,7 @@ export async function updateCategory(
 }
 
 export async function deleteCategory(id: string): Promise<boolean> {
-  const supabase = createClient();
-  // Set articles with this category to null
+  const supabase = db();
   const cat = await supabase
     .from("categories")
     .select("slug")
@@ -118,17 +131,14 @@ export async function deleteCategory(id: string): Promise<boolean> {
       .update({ category: null })
       .eq("category", cat.data.slug);
   }
-  const { error } = await supabase
-    .from("categories")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("categories").delete().eq("id", id);
   return !error;
 }
 
 export async function reorderCategories(
   orderedIds: string[]
 ): Promise<boolean> {
-  const supabase = createClient();
+  const supabase = db();
   const updates = orderedIds.map((id, index) =>
     supabase
       .from("categories")
@@ -144,7 +154,7 @@ export async function reorderCategories(
 export async function updateBlogSettings(
   updates: Partial<BlogSettings>
 ): Promise<BlogSettings | null> {
-  const supabase = createClient();
+  const supabase = db();
   const { data: existing } = await supabase
     .from("blog_settings")
     .select("id")
@@ -169,7 +179,7 @@ export async function updateBlogSettings(
 // ── Nav Items ──────────────────────────────────────────────
 
 export async function getAllNavItems(): Promise<NavItem[]> {
-  const supabase = createClient();
+  const supabase = db();
   const { data } = await supabase
     .from("nav_items")
     .select("*")
@@ -181,7 +191,7 @@ export async function getAllNavItems(): Promise<NavItem[]> {
 export async function createNavItem(
   item: Partial<NavItem>
 ): Promise<NavItem | null> {
-  const supabase = createClient();
+  const supabase = db();
   const { data, error } = await supabase
     .from("nav_items")
     .insert(item)
@@ -199,7 +209,7 @@ export async function updateNavItem(
   id: string,
   updates: Partial<NavItem>
 ): Promise<NavItem | null> {
-  const supabase = createClient();
+  const supabase = db();
   const { data, error } = await supabase
     .from("nav_items")
     .update(updates)
@@ -215,18 +225,15 @@ export async function updateNavItem(
 }
 
 export async function deleteNavItem(id: string): Promise<boolean> {
-  const supabase = createClient();
-  const { error } = await supabase
-    .from("nav_items")
-    .delete()
-    .eq("id", id);
+  const supabase = db();
+  const { error } = await supabase.from("nav_items").delete().eq("id", id);
   return !error;
 }
 
 export async function reorderNavItems(
   orderedIds: string[]
 ): Promise<boolean> {
-  const supabase = createClient();
+  const supabase = db();
   const updates = orderedIds.map((id, index) =>
     supabase
       .from("nav_items")

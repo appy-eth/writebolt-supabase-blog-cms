@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStorageProvider } from "@/lib/storage/provider";
+import {
+  getStorageProvider,
+  type AssetFolder,
+} from "@/lib/storage/provider";
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
+  const folderRaw = formData.get("folder");
+  const folder: AssetFolder =
+    folderRaw === "site" ? "site" : "blog";
 
   if (!file) {
     return NextResponse.json(
@@ -12,7 +18,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const allowedTypes = [
+  const allowedBlog = [
     "image/jpeg",
     "image/png",
     "image/gif",
@@ -20,6 +26,15 @@ export async function POST(request: NextRequest) {
     "image/svg+xml",
     "image/avif",
   ];
+
+  const allowedSite = [
+    ...allowedBlog,
+    "image/x-icon",
+    "image/vnd.microsoft.icon",
+    "application/octet-stream",
+  ];
+
+  const allowedTypes = folder === "site" ? allowedSite : allowedBlog;
 
   if (!allowedTypes.includes(file.type)) {
     return NextResponse.json(
@@ -39,7 +54,7 @@ export async function POST(request: NextRequest) {
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const storage = await getStorageProvider();
-    const url = await storage.saveImage(buffer, file.name);
+    const url = await storage.saveImage(buffer, file.name, folder);
 
     return NextResponse.json({ url }, { status: 201 });
   } catch (err) {

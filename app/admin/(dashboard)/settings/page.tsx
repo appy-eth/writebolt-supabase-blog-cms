@@ -12,8 +12,12 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch("/api/admin/settings")
       .then((r) => r.json())
-      .then((data) => {
-        setSettings(data);
+      .then((data: BlogSettings) => {
+        setSettings({
+          ...data,
+          scheduled_publishing_enabled:
+            data.scheduled_publishing_enabled ?? true,
+        });
         setLoading(false);
       });
   }, []);

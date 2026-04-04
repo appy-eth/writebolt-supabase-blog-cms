@@ -30,8 +30,9 @@ export interface Article {
   reading_time_minutes: number | null;
   seo_title: string | null;
   seo_description: string | null;
-  status: "draft" | "published" | "archived";
+  status: "draft" | "published" | "archived" | "scheduled";
   published_at: string | null;
+  scheduled_date: string | null;
   created_at: string;
   updated_at: string;
   author?: Author;
@@ -40,6 +41,7 @@ export interface Article {
 export interface BlogSettings {
   id: string;
   blog_name: string;
+  /** Short tagline: header subtitle, default meta description, and social cards when no per-page description exists */
   blog_description: string;
   logo_url: string | null;
   favicon_url: string | null;
@@ -54,10 +56,13 @@ export interface BlogSettings {
   show_related_articles: boolean;
   show_author_card: boolean;
   inline_cta_enabled: boolean;
-  inline_cta_title: string | null;
-  inline_cta_description: string | null;
+  inline_cta_heading: string | null;
+  inline_cta_subheading: string | null;
+  inline_cta_email_placeholder: string | null;
   inline_cta_button_text: string | null;
-  inline_cta_button_url: string | null;
+  inline_cta_success_redirect_url: string | null;
+  /** Optional audience override; falls back to newsletter_list_id when null */
+  inline_cta_list_id: string | null;
   sidebar_cta_enabled: boolean;
   sidebar_cta_title: string | null;
   sidebar_cta_description: string | null;
@@ -66,8 +71,12 @@ export interface BlogSettings {
   sidebar_cta_image_url: string | null;
   newsletter_enabled: boolean;
   newsletter_provider: string | null;
-  newsletter_form_action: string | null;
+  /** Audience / list / campaign ID for API-based providers */
+  newsletter_list_id: string | null;
   newsletter_success_message: string;
+  newsletter_success_redirect_url: string | null;
+  /** Optional: hosted form POST URL (e.g. Mailchimp embed) when not using the API */
+  newsletter_embed_url: string | null;
   site_title_template: string;
   default_og_image: string | null;
   google_analytics_id: string | null;
@@ -78,6 +87,7 @@ export interface BlogSettings {
   social_website: string | null;
   image_storage_provider: "local" | "supabase";
   supabase_storage_bucket: string;
+  scheduled_publishing_enabled: boolean;
   created_at: string;
   updated_at: string;
 }

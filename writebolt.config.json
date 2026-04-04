@@ -1,6 +1,5 @@
 {
   "version": 1,
-  "content_dir": "content/posts",
   "format": "mdx",
   "image_dir": "public/images/blog",
   "frontmatter_schema": {

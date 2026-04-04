@@ -1,6 +1,5 @@
--- Writebolt Blog — initial schema
--- Run this in Supabase → SQL Editor after `npm run setup` creates your .env.local.
--- Safe to run once on a new project.
+-- Writebolt Blog — complete schema (single migration for new projects)
+-- Run in Supabase → SQL Editor after `npm run setup` creates your `.env.local`.
 
 create extension if not exists "pgcrypto";
 
@@ -38,8 +37,9 @@ create table if not exists public.articles (
   reading_time_minutes integer,
   seo_title text,
   seo_description text,
-  status text not null default 'draft' check (status in ('draft', 'published', 'archived')),
+  status text not null default 'draft' check (status in ('draft', 'published', 'archived', 'scheduled')),
   published_at timestamptz,
+  scheduled_date timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   fts tsvector generated always as (
@@ -69,7 +69,7 @@ create table if not exists public.categories (
 create table if not exists public.blog_settings (
   id uuid primary key default gen_random_uuid(),
   blog_name text not null default 'My Blog',
-  blog_description text not null default 'A blog powered by Writebolt',
+  blog_description text not null default 'A short tagline for your blog. Shown in the header and default meta description.',
   logo_url text,
   favicon_url text,
   layout_mode text not null default 'standalone' check (layout_mode in ('standalone', 'embedded', 'custom')),
@@ -83,10 +83,12 @@ create table if not exists public.blog_settings (
   show_related_articles boolean not null default true,
   show_author_card boolean not null default true,
   inline_cta_enabled boolean not null default false,
-  inline_cta_title text,
-  inline_cta_description text,
+  inline_cta_heading text,
+  inline_cta_subheading text,
+  inline_cta_email_placeholder text default 'Enter your email',
   inline_cta_button_text text,
-  inline_cta_button_url text,
+  inline_cta_success_redirect_url text,
+  inline_cta_list_id text,
   sidebar_cta_enabled boolean not null default false,
   sidebar_cta_title text,
   sidebar_cta_description text,
@@ -95,8 +97,10 @@ create table if not exists public.blog_settings (
   sidebar_cta_image_url text,
   newsletter_enabled boolean not null default false,
   newsletter_provider text,
-  newsletter_form_action text,
+  newsletter_list_id text,
   newsletter_success_message text not null default 'Thanks for subscribing!',
+  newsletter_success_redirect_url text,
+  newsletter_embed_url text,
   site_title_template text not null default '{title} | {blog_name}',
   default_og_image text,
   google_analytics_id text,
@@ -107,6 +111,7 @@ create table if not exists public.blog_settings (
   social_website text,
   image_storage_provider text not null default 'local' check (image_storage_provider in ('local', 'supabase')),
   supabase_storage_bucket text not null default 'blog-images',
+  scheduled_publishing_enabled boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -133,14 +138,14 @@ create table if not exists public.ai_settings (
   default_image_style text not null default 'photorealistic'
 );
 
--- ── RLS: permissive for self-hosted blog (anon key in browser)
--- Tighten this when you add Supabase Auth to /admin.
+-- ── RLS (anon may only read published articles) ─────────────
 drop policy if exists "allow_all" on public.authors;
 drop policy if exists "allow_all" on public.articles;
 drop policy if exists "allow_all" on public.categories;
 drop policy if exists "allow_all" on public.blog_settings;
 drop policy if exists "allow_all" on public.nav_items;
 drop policy if exists "allow_all" on public.ai_settings;
+drop policy if exists "anon_select_published_articles" on public.articles;
 
 alter table public.authors enable row level security;
 alter table public.articles enable row level security;
@@ -149,9 +154,16 @@ alter table public.blog_settings enable row level security;
 alter table public.nav_items enable row level security;
 alter table public.ai_settings enable row level security;
 
--- One permissive policy per table (self-hosted; add auth + stricter policies for production)
 create policy "allow_all" on public.authors for all using (true) with check (true);
-create policy "allow_all" on public.articles for all using (true) with check (true);
+
+create policy "anon_select_published_articles"
+  on public.articles
+  for select
+  to anon, authenticated
+  using (status = 'published');
+
+-- Inserts/updates/deletes use the service role (admin API), which bypasses RLS.
+
 create policy "allow_all" on public.categories for all using (true) with check (true);
 create policy "allow_all" on public.blog_settings for all using (true) with check (true);
 create policy "allow_all" on public.nav_items for all using (true) with check (true);

@@ -1,24 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { Article } from "@/types";
+
+const FILTERS = [
+  { id: "all", label: "All" },
+  { id: "published", label: "Published" },
+  { id: "draft", label: "Drafts" },
+  { id: "scheduled", label: "Scheduled" },
+  { id: "archived", label: "Archived" },
+] as const;
 
 export default function AdminDashboard() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<string>("all");
 
-  useEffect(() => {
-    fetchArticles();
-  }, []);
-
-  async function fetchArticles() {
-    const res = await fetch("/api/admin/articles");
+  const fetchArticles = useCallback(async () => {
+    setLoading(true);
+    const q =
+      filter === "all" ? "" : `?status=${encodeURIComponent(filter)}`;
+    const res = await fetch(`/api/admin/articles${q}`);
     if (res.ok) {
       setArticles(await res.json());
     }
     setLoading(false);
-  }
+  }, [filter]);
+
+  useEffect(() => {
+    fetchArticles();
+  }, [fetchArticles]);
 
   async function handleDelete(id: string) {
     if (!confirm("Are you sure you want to delete this article?")) return;
@@ -32,7 +44,7 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Articles</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -41,38 +53,84 @@ export default function AdminDashboard() {
         </div>
         <Link
           href="/admin/new"
-          className="flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#1D4ED8] transition-colors"
+          className="flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#1D4ED8]"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 4.5v15m7.5-7.5h-15"
+            />
           </svg>
           New Article
         </Link>
       </div>
 
+      <div className="mt-6 flex flex-wrap gap-2 border-b border-gray-200 pb-3">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setFilter(f.id)}
+            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+              filter === f.id
+                ? "bg-gray-900 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="mt-8 space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-20 animate-pulse rounded-lg bg-gray-100" />
+            <div
+              key={i}
+              className="h-20 animate-pulse rounded-lg bg-gray-100"
+            />
           ))}
         </div>
       ) : articles.length === 0 ? (
         <div className="mt-16 text-center">
-          <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+          <svg
+            className="mx-auto h-12 w-12 text-gray-300"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1}
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+            />
           </svg>
           <h3 className="mt-4 text-lg font-semibold text-gray-900">
-            No articles yet
+            {filter === "all"
+              ? "No articles yet"
+              : "No articles in this filter"}
           </h3>
           <p className="mt-2 text-sm text-gray-500">
-            Get started by creating your first article.
+            {filter === "all"
+              ? "Get started by creating your first article."
+              : "Try another filter or create a new article."}
           </p>
-          <Link
-            href="/admin/new"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#1D4ED8]"
-          >
-            Write your first article
-          </Link>
+          {filter === "all" && (
+            <Link
+              href="/admin/new"
+              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#1D4ED8]"
+            >
+              Write your first article
+            </Link>
+          )}
         </div>
       ) : (
         <div className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -89,7 +147,7 @@ export default function AdminDashboard() {
                   Category
                 </th>
                 <th className="hidden px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 lg:table-cell">
-                  Updated
+                  Dates
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
                   Actions
@@ -98,7 +156,10 @@ export default function AdminDashboard() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {articles.map((article) => (
-                <tr key={article.id} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={article.id}
+                  className="transition-colors hover:bg-gray-50"
+                >
                   <td className="px-6 py-4">
                     <div>
                       <Link
@@ -113,7 +174,15 @@ export default function AdminDashboard() {
                     </div>
                   </td>
                   <td className="hidden px-6 py-4 sm:table-cell">
-                    <StatusBadge status={article.status} />
+                    <div className="flex flex-col gap-0.5">
+                      <StatusBadge status={article.status} />
+                      {article.status === "scheduled" &&
+                        article.scheduled_date && (
+                          <span className="text-xs text-gray-500">
+                            {new Date(article.scheduled_date).toLocaleString()}
+                          </span>
+                        )}
+                    </div>
                   </td>
                   <td className="hidden px-6 py-4 md:table-cell">
                     {article.category ? (
@@ -126,10 +195,9 @@ export default function AdminDashboard() {
                   </td>
                   <td className="hidden px-6 py-4 lg:table-cell">
                     <span className="text-sm text-gray-500">
-                      {new Date(article.updated_at).toLocaleDateString(
-                        "en-US",
-                        { month: "short", day: "numeric", year: "numeric" }
-                      )}
+                      {article.status === "published" && article.published_at
+                        ? `Published ${new Date(article.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                        : `Updated ${new Date(article.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -140,14 +208,16 @@ export default function AdminDashboard() {
                       >
                         Edit
                       </Link>
-                      <a
-                        href={`/blog/${article.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
-                      >
-                        View
-                      </a>
+                      {article.status === "published" && (
+                        <a
+                          href={`/blog/${article.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                        >
+                          View
+                        </a>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleDelete(article.id)}
@@ -172,6 +242,7 @@ function StatusBadge({ status }: { status: string }) {
     published: "bg-green-50 text-green-700 ring-green-600/20",
     draft: "bg-yellow-50 text-yellow-700 ring-yellow-600/20",
     archived: "bg-gray-50 text-gray-600 ring-gray-500/20",
+    scheduled: "bg-blue-50 text-blue-700 ring-blue-600/20",
   };
 
   return (

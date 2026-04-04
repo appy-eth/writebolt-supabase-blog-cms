@@ -1,45 +1,23 @@
 import { compileMdx } from "@/lib/mdx/compile";
-import { CTAInline } from "@/components/callouts/cta-inline";
-import type { BlogSettings } from "@/types";
 
 interface ArticleContentProps {
   html?: string | null;
   markdown?: string | null;
-  settings?: BlogSettings | null;
 }
 
 export async function ArticleContent({
   html,
   markdown,
-  settings,
 }: ArticleContentProps) {
   const source = markdown || "";
-  const hasMdxCTA = source.includes("<CTAInline");
 
-  const shouldInsertGlobalCTA =
-    settings?.inline_cta_enabled &&
-    settings?.inline_cta_title &&
-    settings?.inline_cta_button_text &&
-    settings?.inline_cta_button_url &&
-    !hasMdxCTA;
-
-  let processedSource = source;
-
-  if (shouldInsertGlobalCTA) {
-    processedSource = insertCTAAfterThirdH2(source);
-  }
-
-  if (processedSource) {
+  if (source) {
     try {
-      const { content } = await compileMdx(processedSource);
+      const { content } = await compileMdx(source);
 
       return (
         <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-a:text-[#2563EB] prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-blockquote:border-l-[#2563EB] dark:prose-invert dark:prose-headings:text-gray-100 dark:prose-p:text-gray-300 dark:prose-li:text-gray-300 dark:prose-strong:text-gray-100 dark:prose-blockquote:text-gray-300">
           {content}
-
-          {shouldInsertGlobalCTA && (
-            <GlobalInlineCTA settings={settings!} />
-          )}
         </div>
       );
     } catch {
@@ -55,30 +33,6 @@ export async function ArticleContent({
       dangerouslySetInnerHTML={{ __html: fallbackHtml }}
     />
   );
-}
-
-function GlobalInlineCTA({ settings }: { settings: BlogSettings }) {
-  return null;
-}
-
-function insertCTAAfterThirdH2(md: string): string {
-  let count = 0;
-  const lines = md.split("\n");
-  const result: string[] = [];
-
-  for (const line of lines) {
-    if (/^## /.test(line)) {
-      count++;
-      if (count === 4) {
-        result.push("");
-        result.push("---");
-        result.push("");
-      }
-    }
-    result.push(line);
-  }
-
-  return result.join("\n");
 }
 
 function convertMarkdownToBasicHtml(md: string): string {

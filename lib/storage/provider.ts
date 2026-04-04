@@ -10,8 +10,14 @@ export interface ImageMeta {
   created_at?: string;
 }
 
+export type AssetFolder = "blog" | "site";
+
 export interface StorageProvider {
-  saveImage(file: Buffer, filename: string): Promise<string>;
+  saveImage(
+    file: Buffer,
+    filename: string,
+    folder?: AssetFolder
+  ): Promise<string>;
   getImageUrl(path: string): string;
   deleteImage(path: string): Promise<void>;
   listImages(prefix?: string): Promise<ImageMeta[]>;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Article, Category, Author } from "@/types";
+import type { Article, Category } from "@/types";
 import { ImageUpload } from "./image-upload";
 
 interface FrontmatterEditorProps {
@@ -14,20 +14,12 @@ export function FrontmatterEditor({
   onChange,
 }: FrontmatterEditorProps) {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [authors, setAuthors] = useState<Author[]>([]);
   const [tagInput, setTagInput] = useState("");
 
   useEffect(() => {
     fetch("/api/admin/categories")
       .then((r) => r.json())
       .then(setCategories)
-      .catch(() => {});
-
-    fetch("/api/admin/articles")
-      .then(() => {
-        // Load authors for the dropdown
-        // We don't have a dedicated authors API yet, so we'll skip for now
-      })
       .catch(() => {});
   }, []);
 
@@ -199,27 +191,29 @@ export function FrontmatterEditor({
         )}
       </div>
 
-      {/* Status */}
+      {/* Status (publish/split button controls this) */}
       <div>
         <label className="block text-sm font-medium text-gray-700">
           Status
         </label>
-        <select
-          value={article.status ?? "draft"}
-          onChange={(e) =>
-            onChange({
-              status: e.target.value as "draft" | "published" | "archived",
-              ...(e.target.value === "published" && !article.published_at
-                ? { published_at: new Date().toISOString() }
-                : {}),
-            })
-          }
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm shadow-sm focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none"
-        >
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-          <option value="archived">Archived</option>
-        </select>
+        <p className="mt-1 text-sm capitalize text-gray-700">
+          {article.status ?? "draft"}
+          {article.status === "scheduled" && article.scheduled_date ? (
+            <span className="ml-2 font-normal text-gray-500">
+              — {new Date(article.scheduled_date).toLocaleString()}
+            </span>
+          ) : null}
+          {article.status === "published" && article.published_at ? (
+            <span className="ml-2 font-normal text-gray-500">
+              — published{" "}
+              {new Date(article.published_at).toLocaleString()}
+            </span>
+          ) : null}
+        </p>
+        <p className="mt-1 text-xs text-gray-500">
+          Use the publish button (Save as Draft / Publish Now / Schedule) at the
+          top of the page.
+        </p>
       </div>
 
       {/* SEO fields */}

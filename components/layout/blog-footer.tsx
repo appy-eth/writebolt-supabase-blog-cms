@@ -18,15 +18,20 @@ export function BlogFooter({ settings }: BlogFooterProps) {
     <footer className="border-t border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Newsletter in footer */}
-        {settings.newsletter_enabled && settings.newsletter_form_action && (
-          <div className="mb-8 border-b border-gray-200 pb-8 dark:border-gray-800">
-            <NewsletterSignup
-              formAction={settings.newsletter_form_action}
-              successMessage={settings.newsletter_success_message}
-              variant="footer"
-            />
-          </div>
-        )}
+        {settings.newsletter_enabled &&
+          (settings.newsletter_embed_url?.trim() ||
+            settings.newsletter_list_id?.trim()) && (
+            <div className="mb-8 border-b border-gray-200 pb-8 dark:border-gray-800">
+              <NewsletterSignup
+                embedUrl={settings.newsletter_embed_url}
+                listId={settings.newsletter_list_id}
+                successMessage={settings.newsletter_success_message}
+                successRedirectUrl={settings.newsletter_success_redirect_url}
+                emailPlaceholder="Enter your email"
+                variant="footer"
+              />
+            </div>
+          )}
 
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
           <p className="text-sm text-gray-500 dark:text-gray-400">

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/admin-auth";
 import { createClient } from "@/lib/supabase/server";
 import { encrypt, decrypt } from "@/lib/ai/encryption";
 
 export async function GET() {
+  const auth = await requireAdminApi();
+  if (auth) return auth;
+
   const supabase = createClient();
   const { data } = await supabase
     .from("ai_settings")
@@ -30,6 +34,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminApi();
+  if (auth) return auth;
+
   const body = await request.json();
   const supabase = createClient();
 

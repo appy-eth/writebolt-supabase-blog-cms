@@ -21,15 +21,20 @@ export async function Sidebar({ settings }: SidebarProps) {
           />
         )}
 
-        {settings.newsletter_enabled && settings.newsletter_form_action && (
-          <NewsletterSignup
-            formAction={settings.newsletter_form_action}
-            title="Stay updated"
-            description="Get new articles in your inbox."
-            successMessage={settings.newsletter_success_message}
-            variant="card"
-          />
-        )}
+        {settings.newsletter_enabled &&
+          (settings.newsletter_embed_url?.trim() ||
+            settings.newsletter_list_id?.trim()) && (
+            <NewsletterSignup
+              embedUrl={settings.newsletter_embed_url}
+              listId={settings.newsletter_list_id}
+              title="Stay updated"
+              description="Get new articles in your inbox."
+              successMessage={settings.newsletter_success_message}
+              successRedirectUrl={settings.newsletter_success_redirect_url}
+              emailPlaceholder="Enter your email"
+              variant="card"
+            />
+          )}
 
         <PopularArticles />
       </div>

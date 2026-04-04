@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/admin-auth";
 import {
   getArticleById,
   updateArticle,
@@ -9,6 +10,9 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireAdminApi();
+  if (auth) return auth;
+
   const article = await getArticleById(params.id);
   if (!article) {
     return NextResponse.json(
@@ -23,6 +27,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireAdminApi();
+  if (auth) return auth;
+
   const body = await request.json();
   const article = await updateArticle(params.id, body);
   if (!article) {
@@ -38,6 +45,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireAdminApi();
+  if (auth) return auth;
+
   const success = await deleteArticle(params.id);
   if (!success) {
     return NextResponse.json(

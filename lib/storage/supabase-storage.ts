@@ -4,10 +4,15 @@ import type { StorageProvider, ImageMeta } from "./provider";
 export class SupabaseStorageProvider implements StorageProvider {
   constructor(private bucket: string) {}
 
-  async saveImage(file: Buffer, filename: string): Promise<string> {
+  async saveImage(
+    file: Buffer,
+    filename: string,
+    folder: "blog" | "site" = "blog"
+  ): Promise<string> {
     const supabase = createClient();
     const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "-");
-    const filePath = `blog/${Date.now()}-${safeName}`;
+    const prefix = folder === "site" ? "site" : "blog";
+    const filePath = `${prefix}/${Date.now()}-${safeName}`;
 
     const { error } = await supabase.storage
       .from(this.bucket)
@@ -81,6 +86,7 @@ function getMimeType(filename: string): string {
     webp: "image/webp",
     svg: "image/svg+xml",
     avif: "image/avif",
+    ico: "image/x-icon",
   };
   return types[ext ?? ""] || "application/octet-stream";
 }

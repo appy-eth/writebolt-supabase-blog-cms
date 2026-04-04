@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { BlogSettings } from "@/types";
+import { SiteAssetField } from "@/components/admin/site-asset-field";
 
 interface BlogSettingsFormProps {
   initialSettings: BlogSettings;
@@ -57,25 +58,26 @@ export function BlogSettingsForm({ initialSettings }: BlogSettingsFormProps) {
             rows={2}
             className="input resize-none"
           />
+          <p className="mt-1 text-xs text-gray-500">
+            Short tagline shown under your blog name, used as the default meta
+            description and in social previews when an article doesn&apos;t set
+            its own.
+          </p>
         </Field>
-        <Field label="Logo URL">
-          <input
-            type="text"
-            value={settings.logo_url ?? ""}
-            onChange={(e) => update({ logo_url: e.target.value || null })}
-            placeholder="/images/logo.png"
-            className="input"
-          />
-        </Field>
-        <Field label="Favicon URL">
-          <input
-            type="text"
-            value={settings.favicon_url ?? ""}
-            onChange={(e) => update({ favicon_url: e.target.value || null })}
-            placeholder="/favicon.ico"
-            className="input"
-          />
-        </Field>
+        <SiteAssetField
+          label="Logo URL"
+          value={settings.logo_url ?? ""}
+          onChange={(url) => update({ logo_url: url || null })}
+          placeholder="/images/site/logo.png"
+          relativeDir="public/images/site"
+        />
+        <SiteAssetField
+          label="Favicon URL"
+          value={settings.favicon_url ?? ""}
+          onChange={(url) => update({ favicon_url: url || null })}
+          placeholder="/images/site/favicon.ico"
+          relativeDir="public/images/site"
+        />
       </Section>
 
       {/* Layout */}
@@ -152,6 +154,27 @@ export function BlogSettingsForm({ initialSettings }: BlogSettingsFormProps) {
         </Field>
       </Section>
 
+      {/* Scheduled publishing (GitHub Action) */}
+      <Section title="Publishing">
+        <Checkbox
+          label="Automatic scheduled publishing"
+          checked={settings.scheduled_publishing_enabled ?? true}
+          onChange={(v) => update({ scheduled_publishing_enabled: v })}
+        />
+        <p className="text-sm text-gray-500">
+          When enabled, scheduled articles publish automatically via GitHub
+          Actions every 6 hours. Requires{" "}
+          <code className="rounded bg-gray-100 px-1 text-xs">
+            SUPABASE_URL
+          </code>{" "}
+          and{" "}
+          <code className="rounded bg-gray-100 px-1 text-xs">
+            SUPABASE_SERVICE_ROLE_KEY
+          </code>{" "}
+          in your repo&apos;s Actions secrets.
+        </p>
+      </Section>
+
       {/* Image Storage */}
       <Section title="Image Storage">
         <div className="space-y-2">
@@ -198,36 +221,51 @@ export function BlogSettingsForm({ initialSettings }: BlogSettingsFormProps) {
         )}
       </Section>
 
-      {/* Inline CTA */}
+      {/* Inline CTA (email capture after article body) */}
       <Section title="Inline CTA">
         <Checkbox
-          label="Enable inline CTA on articles"
+          label="Show email capture CTA on articles"
           checked={settings.inline_cta_enabled}
           onChange={(v) => update({ inline_cta_enabled: v })}
         />
         {settings.inline_cta_enabled && (
           <div className="mt-3 space-y-3">
-            <Field label="Title">
+            <Field label="Heading">
               <input
                 type="text"
-                value={settings.inline_cta_title ?? ""}
+                value={settings.inline_cta_heading ?? ""}
                 onChange={(e) =>
-                  update({ inline_cta_title: e.target.value || null })
+                  update({ inline_cta_heading: e.target.value || null })
                 }
                 className="input"
               />
             </Field>
-            <Field label="Description">
+            <Field label="Subheading">
               <input
                 type="text"
-                value={settings.inline_cta_description ?? ""}
+                value={settings.inline_cta_subheading ?? ""}
                 onChange={(e) =>
-                  update({ inline_cta_description: e.target.value || null })
+                  update({ inline_cta_subheading: e.target.value || null })
                 }
                 className="input"
               />
             </Field>
-            <Field label="Button Text">
+            <Field label="Email placeholder">
+              <input
+                type="text"
+                value={
+                  settings.inline_cta_email_placeholder ?? "Enter your email"
+                }
+                onChange={(e) =>
+                  update({
+                    inline_cta_email_placeholder: e.target.value || null,
+                  })
+                }
+                placeholder="Enter your email"
+                className="input"
+              />
+            </Field>
+            <Field label="Button text">
               <input
                 type="text"
                 value={settings.inline_cta_button_text ?? ""}
@@ -239,18 +277,36 @@ export function BlogSettingsForm({ initialSettings }: BlogSettingsFormProps) {
                 className="input"
               />
             </Field>
-            <Field label="Button URL">
+            <Field label="Success redirect URL">
               <input
                 type="url"
-                value={settings.inline_cta_button_url ?? ""}
+                value={settings.inline_cta_success_redirect_url ?? ""}
                 onChange={(e) =>
                   update({
-                    inline_cta_button_url: e.target.value || null,
+                    inline_cta_success_redirect_url: e.target.value || null,
                   })
                 }
+                placeholder="https://… (optional)"
                 className="input"
               />
             </Field>
+            <Field label="Email list / campaign ID">
+              <input
+                type="text"
+                value={settings.inline_cta_list_id ?? ""}
+                onChange={(e) =>
+                  update({ inline_cta_list_id: e.target.value || null })
+                }
+                placeholder="Overrides newsletter list ID for this CTA (optional)"
+                className="input"
+              />
+            </Field>
+            <p className="text-xs text-gray-500">
+              Submissions use the same API as the newsletter block. Set{" "}
+              <code className="rounded bg-gray-100 px-1">NEWSLETTER_API_KEY</code>{" "}
+              in <code className="rounded bg-gray-100 px-1">.env.local</code> and
+              configure a list ID here or under Newsletter.
+            </p>
           </div>
         )}
       </Section>
@@ -329,10 +385,21 @@ export function BlogSettingsForm({ initialSettings }: BlogSettingsFormProps) {
       {/* Newsletter */}
       <Section title="Newsletter">
         <Checkbox
-          label="Enable newsletter signup"
+          label="Show newsletter signup (footer & sidebar)"
           checked={settings.newsletter_enabled}
           onChange={(v) => update({ newsletter_enabled: v })}
         />
+        <p className="text-sm text-gray-500">
+          <strong>API key:</strong> add{" "}
+          <code className="rounded bg-gray-100 px-1">NEWSLETTER_API_KEY</code> to{" "}
+          <code className="rounded bg-gray-100 px-1">.env.local</code> (you can
+          add it during <code className="rounded bg-gray-100 px-1">npm run setup</code>{" "}
+          or manually). The template ships with a{" "}
+          <code className="rounded bg-gray-100 px-1">/api/newsletter/subscribe</code>{" "}
+          route; wire your provider (Resend, Mailchimp API, etc.) there. For
+          classic hosted forms, use <strong>Embed form URL</strong> instead—no
+          API key required.
+        </p>
         {settings.newsletter_enabled && (
           <div className="mt-3 space-y-3">
             <Field label="Provider">
@@ -347,32 +414,58 @@ export function BlogSettingsForm({ initialSettings }: BlogSettingsFormProps) {
               >
                 <option value="">Select provider</option>
                 <option value="mailchimp">Mailchimp</option>
+                <option value="klaviyo">Klaviyo</option>
                 <option value="convertkit">ConvertKit</option>
+                <option value="beehiiv">Beehiiv</option>
                 <option value="buttondown">Buttondown</option>
                 <option value="resend">Resend</option>
-                <option value="custom">Custom webhook</option>
+                <option value="custom">Custom / other</option>
               </select>
             </Field>
-            <Field label="Form Action URL">
+            <Field label="Audience / list / campaign ID">
               <input
-                type="url"
-                value={settings.newsletter_form_action ?? ""}
+                type="text"
+                value={settings.newsletter_list_id ?? ""}
                 onChange={(e) =>
-                  update({
-                    newsletter_form_action: e.target.value || null,
-                  })
+                  update({ newsletter_list_id: e.target.value || null })
                 }
-                placeholder="https://..."
+                placeholder="Used with the API route + NEWSLETTER_API_KEY"
                 className="input"
               />
             </Field>
-            <Field label="Success Message">
+            <Field label="Success message">
               <input
                 type="text"
                 value={settings.newsletter_success_message}
                 onChange={(e) =>
                   update({ newsletter_success_message: e.target.value })
                 }
+                className="input"
+              />
+            </Field>
+            <Field label="Success redirect URL (optional)">
+              <input
+                type="url"
+                value={settings.newsletter_success_redirect_url ?? ""}
+                onChange={(e) =>
+                  update({
+                    newsletter_success_redirect_url: e.target.value || null,
+                  })
+                }
+                placeholder="After subscribe (API mode)"
+                className="input"
+              />
+            </Field>
+            <Field label="Embed form URL (optional)">
+              <input
+                type="url"
+                value={settings.newsletter_embed_url ?? ""}
+                onChange={(e) =>
+                  update({
+                    newsletter_embed_url: e.target.value || null,
+                  })
+                }
+                placeholder="https://… (Mailchimp etc. — opens in new tab)"
                 className="input"
               />
             </Field>

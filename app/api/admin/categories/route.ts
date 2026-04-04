@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/admin-auth";
 import { getCategories } from "@/lib/supabase/queries";
 import {
   createCategory,
@@ -6,11 +7,17 @@ import {
 } from "@/lib/supabase/admin-queries";
 
 export async function GET() {
+  const auth = await requireAdminApi();
+  if (auth) return auth;
+
   const categories = await getCategories();
   return NextResponse.json(categories);
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminApi();
+  if (auth) return auth;
+
   const body = await request.json();
   const category = await createCategory(body);
   if (!category) {
@@ -23,6 +30,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const auth = await requireAdminApi();
+  if (auth) return auth;
+
   const body = await request.json();
   if (body.orderedIds) {
     const success = await reorderCategories(body.orderedIds);

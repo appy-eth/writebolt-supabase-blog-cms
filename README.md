@@ -49,23 +49,30 @@ A complete blog site from scratch.
 git clone https://github.com/appy-eth/writebolt-supabase-blog-cms.git my-blog
 cd my-blog
 npm install
+```
+
+Apply the database migration **before** the seed can succeed:
+
+1. Open **Supabase → SQL Editor → New query**
+2. Paste and run **`supabase/migrations/001_writebolt_blog_schema.sql`**
+
+Then create your environment file and seed defaults (author, settings, nav, sample articles):
+
+```bash
 npm run setup
 ```
 
-`npm run setup` writes your `.env.local` (Supabase URL, keys, encryption key). Have your Supabase URL and keys ready from [supabase.com](https://supabase.com) → **Settings → API**.
-
-Then apply the database schema and seed default content:
-
-1. Open **Supabase → SQL Editor → New query**
-2. Paste the full contents of **`supabase/migrations/001_writebolt_blog_schema.sql`**
-3. Click **Run**
+`npm run setup` writes `.env.local` (Supabase URL, anon + service role keys, encryption key, and optional `NEWSLETTER_API_KEY`). Have your keys ready from [supabase.com](https://supabase.com) → **Settings → API**. After the migration exists, setup runs the seed automatically. If the database was not ready yet, setup logs a warning; when the migration is in place, run:
 
 ```bash
-npm run seed
+npm run setup -- --seed
+```
+
+```bash
 npm run dev
 ```
 
-Visit [localhost:3000](http://localhost:3000) → your blog. Visit [localhost:3000/admin](http://localhost:3000/admin) → start writing.
+Visit [localhost:3000](http://localhost:3000) → opens **Blog Settings** in the admin. The public blog is at [localhost:3000/blog](http://localhost:3000/blog).
 
 <details>
 <summary><strong>Troubleshooting: <code>npm install</code> says package.json not found</strong></summary>
@@ -141,29 +148,16 @@ Switch anytime in `/admin/settings` → Layout. No code changes, takes effect im
 
 ## Scheduled publishing
 
-Put Markdown or MDX files in **`content/drafts/`** with a **`publishDate`** in the frontmatter (and optionally `draft: true`). Published file-based posts live in **`content/posts/`** (see `writebolt.config.json` → `content_dir`).
+Articles saved with a **Schedule** time in the admin editor stay in **`scheduled`** status until they are due. A [GitHub Action](.github/workflows/publish-drafts.yml) runs **every 6 hours** and sets due rows to **`published`** (when scheduling is enabled in **Admin → Settings → Publishing**).
 
-**GitHub Action:** [`.github/workflows/publish-drafts.yml`](.github/workflows/publish-drafts.yml) runs **daily at 6:00 UTC** (and can be triggered manually under **Actions → Publish scheduled drafts → Run workflow**). It moves any draft whose `publishDate` is today or in the past into `content/posts/`, strips `draft: true` from frontmatter, and commits the result.
+To enable automatic publishing from GitHub, add these **repository secrets** (Settings → Secrets and variables → Actions):
 
-Example frontmatter:
+- **`SUPABASE_URL`** — your Supabase project URL (same as `NEXT_PUBLIC_SUPABASE_URL` in `.env.local`)
+- **`SUPABASE_SERVICE_ROLE_KEY`** — your service role key (same as in `.env.local`)
 
-```markdown
----
-title: "Why Edge Computing Matters in 2026"
-slug: "edge-computing-2026"
-publishDate: "2026-04-15"
-tags: ["edge", "cloud", "infrastructure"]
-draft: true
----
+You can also run the workflow manually from the **Actions** tab. If secrets are missing, scheduled articles stay in **Scheduled** until you publish them from the admin panel.
 
-Article content here…
-```
-
-**Workflow:** create `content/drafts/my-article.mdx` → set `publishDate` → commit and push. On the due date, the Action publishes the file automatically.
-
-**Local preview:** in development only, visit [`/drafts`](http://localhost:3000/drafts) to see upcoming scheduled files. This route **404s in production**.
-
-> **Note:** The live blog UI reads articles from **Supabase** by default. File-based `content/posts` is for Git-based workflows (e.g. PRs from Writebolt) and the scheduled-draft Action. Sync MDX into your database if you want posts to appear in the app without a separate import step.
+You can turn off automatic publishing under **Admin → Settings** → **Automatic scheduled publishing**.
 
 ---
 
@@ -240,7 +234,7 @@ All tables use Row Level Security. Safe to add alongside existing tables — no 
 | `nav_items` | Configurable header navigation links |
 | `ai_settings` | Encrypted BYOK API key storage |
 
-Apply **`supabase/migrations/001_writebolt_blog_schema.sql`** in the Supabase SQL Editor, then run **`npm run seed`** for default rows.
+Apply **`supabase/migrations/001_writebolt_blog_schema.sql`** in the Supabase SQL Editor, then run **`npm run setup`** (or **`npm run setup -- --seed`** if you already have `.env.local`) to create default rows and sample articles.
 
 ---
 
@@ -258,13 +252,8 @@ Switch in `/admin/settings` → Image Storage.
 ## Project Structure
 
 ```
-content/
-├── drafts/                  # Scheduled MD/MDX (GitHub Action → posts/)
-└── posts/                   # Published file-based posts (writebolt.config.json)
-
 app/
 ├── blog/                    # Blog frontend
-├── drafts/                  # Dev-only preview of scheduled drafts (/drafts)
 ├── authors/                 # Author profiles
 ├── admin/                   # CMS admin panel
 │   ├── categories/          # Category management
@@ -304,6 +293,9 @@ NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SETTINGS_ENCRYPTION_KEY=  # auto-generated during setup
+
+# Optional — newsletter API (used by /api/newsletter/subscribe; can be set during setup)
+# NEWSLETTER_API_KEY=
 
 # Optional (can also be set in /admin/settings/ai)
 OPENAI_API_KEY=sk-...

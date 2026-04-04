@@ -14,9 +14,9 @@ import { ArticleFooter } from "@/components/blog/article-footer";
 import { TableOfContents } from "@/components/blog/table-of-contents";
 import { RelatedArticles } from "@/components/blog/related-articles";
 import { AuthorCard } from "@/components/author/author-card";
-import { CTAInline } from "@/components/callouts/cta-inline";
 import { CTASidebar } from "@/components/callouts/cta-sidebar";
 import { NewsletterSignup } from "@/components/callouts/newsletter-signup";
+import { EmailCaptureInline } from "@/components/callouts/email-capture-inline";
 
 interface ArticlePageProps {
   params: { slug: string };
@@ -62,31 +62,28 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             <ArticleContent
               html={article.content_html}
               markdown={article.content_markdown}
-              settings={settings}
             />
 
-            {/* Global inline CTA after article body */}
             {settings.inline_cta_enabled &&
-              settings.inline_cta_title &&
+              settings.inline_cta_heading &&
               settings.inline_cta_button_text &&
-              settings.inline_cta_button_url && (
-                <CTAInline
-                  title={settings.inline_cta_title}
-                  description={settings.inline_cta_description ?? undefined}
-                  buttonText={settings.inline_cta_button_text}
-                  buttonUrl={settings.inline_cta_button_url}
-                />
+              (settings.inline_cta_list_id || settings.newsletter_list_id) && (
+                <EmailCaptureInline settings={settings} />
               )}
 
             <ArticleFooter article={article} />
 
             {/* Newsletter signup in article footer */}
             {settings.newsletter_enabled &&
-              settings.newsletter_form_action && (
+              (settings.newsletter_embed_url?.trim() ||
+                settings.newsletter_list_id?.trim()) && (
                 <div className="mt-8">
                   <NewsletterSignup
-                    formAction={settings.newsletter_form_action}
+                    embedUrl={settings.newsletter_embed_url}
+                    listId={settings.newsletter_list_id}
                     successMessage={settings.newsletter_success_message}
+                    successRedirectUrl={settings.newsletter_success_redirect_url}
+                    emailPlaceholder="Enter your email"
                     variant="card"
                   />
                 </div>
@@ -133,12 +130,16 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
               {/* Newsletter in sidebar */}
               {settings.newsletter_enabled &&
-                settings.newsletter_form_action && (
+                (settings.newsletter_embed_url?.trim() ||
+                  settings.newsletter_list_id?.trim()) && (
                   <NewsletterSignup
-                    formAction={settings.newsletter_form_action}
+                    embedUrl={settings.newsletter_embed_url}
+                    listId={settings.newsletter_list_id}
                     title="Stay updated"
                     description="Get new articles in your inbox."
                     successMessage={settings.newsletter_success_message}
+                    successRedirectUrl={settings.newsletter_success_redirect_url}
+                    emailPlaceholder="Enter your email"
                     variant="card"
                   />
                 )}

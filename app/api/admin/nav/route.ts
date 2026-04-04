@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/admin-auth";
 import {
   getAllNavItems,
   createNavItem,
@@ -6,11 +7,17 @@ import {
 } from "@/lib/supabase/admin-queries";
 
 export async function GET() {
+  const auth = await requireAdminApi();
+  if (auth) return auth;
+
   const items = await getAllNavItems();
   return NextResponse.json(items);
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminApi();
+  if (auth) return auth;
+
   const body = await request.json();
   const item = await createNavItem(body);
   if (!item) {
@@ -23,6 +30,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const auth = await requireAdminApi();
+  if (auth) return auth;
+
   const body = await request.json();
   if (body.orderedIds) {
     const success = await reorderNavItems(body.orderedIds);

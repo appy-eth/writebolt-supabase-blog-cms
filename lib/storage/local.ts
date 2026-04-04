@@ -2,15 +2,21 @@ import fs from "fs/promises";
 import path from "path";
 import type { StorageProvider, ImageMeta } from "./provider";
 
-const IMAGE_DIR = "public/images/blog";
+const BLOG_DIR = "public/images/blog";
+const SITE_DIR = "public/images/site";
 
 export class LocalStorageProvider implements StorageProvider {
-  private getAbsDir(): string {
-    return path.join(process.cwd(), IMAGE_DIR);
+  private getAbsDir(folder: "blog" | "site"): string {
+    const rel = folder === "site" ? SITE_DIR : BLOG_DIR;
+    return path.join(process.cwd(), rel);
   }
 
-  async saveImage(file: Buffer, filename: string): Promise<string> {
-    const dir = this.getAbsDir();
+  async saveImage(
+    file: Buffer,
+    filename: string,
+    folder: "blog" | "site" = "blog"
+  ): Promise<string> {
+    const dir = this.getAbsDir(folder);
     await fs.mkdir(dir, { recursive: true });
 
     const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "-");
@@ -28,7 +34,8 @@ export class LocalStorageProvider implements StorageProvider {
 
     await fs.writeFile(finalPath, file);
     const relativeName = path.basename(finalPath);
-    return `/images/blog/${relativeName}`;
+    const prefix = folder === "site" ? "/images/site" : "/images/blog";
+    return `${prefix}/${relativeName}`;
   }
 
   getImageUrl(imagePath: string): string {
@@ -37,7 +44,8 @@ export class LocalStorageProvider implements StorageProvider {
 
   async deleteImage(imagePath: string): Promise<void> {
     const filename = path.basename(imagePath);
-    const filePath = path.join(this.getAbsDir(), filename);
+    const folder = imagePath.startsWith("/images/site/") ? "site" : "blog";
+    const filePath = path.join(this.getAbsDir(folder), filename);
     try {
       await fs.unlink(filePath);
     } catch {
@@ -46,7 +54,7 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async listImages(): Promise<ImageMeta[]> {
-    const dir = this.getAbsDir();
+    const dir = this.getAbsDir("blog");
     try {
       const files = await fs.readdir(dir);
       const imageFiles = files.filter((f) =>
