@@ -5,17 +5,17 @@
 <h1 align="center">Writebolt Blog CMS</h1>
 
 <p align="center">
-  <strong>The open-source blog CMS for Next.js + Supabase.</strong><br/>
-  Drop a production-grade blog into any app — or run it standalone.
+  <strong>The open-source blog CMS for Astro + Supabase.</strong><br/>
+  A production-ready template with admin, categories, and scheduled publishing — plus an optional Next.js edition in the same repo.
 </p>
 
 <p align="center">
-  <a href="#standalone-blog">Standalone Blog</a> ·
-  <a href="#add-to-existing-app">Add to Existing App</a> ·
+  <a href="#recommended-astro-template">Astro setup</a> ·
+  <a href="#optional-nextjs-template">Next.js (optional)</a> ·
   <a href="#scheduled-publishing">Scheduled publishing</a> ·
-  <a href="#writebolt-ads-optional">Ads (optional)</a> ·
+  <a href="#writebolt-ads-optional">Ads (Next.js)</a> ·
   <a href="#features">Features</a> ·
-  <a href="#ai-writing-assist">AI Writing</a> ·
+  <a href="#ai-writing-assist-nextjs">AI Writing (Next.js)</a> ·
   <a href="https://writebolt.com">Writebolt Pro →</a>
 </p>
 
@@ -23,86 +23,125 @@
   <a href="https://github.com/appy-eth/writebolt-supabase-blog-cms/stargazers"><img src="https://img.shields.io/github/stars/appy-eth/writebolt-supabase-blog-cms?style=flat&color=22C55E" alt="Stars" /></a>
   <a href="https://github.com/appy-eth/writebolt-supabase-blog-cms/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License" /></a>
   <a href="https://github.com/appy-eth/writebolt-supabase-blog-cms/issues"><img src="https://img.shields.io/github/issues/appy-eth/writebolt-supabase-blog-cms" alt="Issues" /></a>
-  <img src="https://img.shields.io/badge/Next.js-14-black" alt="Next.js 14" />
+  <img src="https://img.shields.io/badge/Astro-5-BC52EE?logo=astro&logoColor=white" alt="Astro 5" />
+  <img src="https://img.shields.io/badge/Next.js-14-000000?logo=next.js&logoColor=white" alt="Next.js 14 (optional)" />
   <img src="https://img.shields.io/badge/Supabase-ready-3ECF8E" alt="Supabase" />
   <img src="https://img.shields.io/badge/TypeScript-strict-blue" alt="TypeScript" />
 </p>
 
+---
 
-## The Blog CMS For Supabase
+## Repository layout
 
-Supabase has become the defacto database or 'BAAS' for developers and vibe coders everywhere, yet blogging is often an afterthought with websites so easy to create. Plus there's the headache of needing a CMS to manage content and SEO, and a quality UI that doesn't look like AI slop.
+This GitHub repository is a **monorepo**:
 
-Writebolt gives you a **full-featured blog CMS** that runs on your existing Supabase project or as a standalone Supabase-powered blog. It has everything you need including a stunning design, blog home page and article page, full schema that slots into your Supabase config, easy setup (git clone + `npm install` + setup wizard), Bring-Your-Own-Key AI powered article and image generation and more.
+| Path | Stack | When to use |
+|------|--------|-------------|
+| **`writebolt-astro/`** | **Astro 5 + Supabase** | **Default.** Fast SSR blog, Markdown admin, minimal deps. |
+| **Repository root** (`app/`, `components/`, …) | Next.js 14 + Supabase | Full MDX CMS, AI tools, embedded blog mode, `npx writebolt-blog init`. |
+
+> **New here?** Clone the repo, then **`cd writebolt-astro`** and follow [Recommended: Astro template](#recommended-astro-template) below.
 
 ---
 
-## Setup
+## Recommended: Astro template
 
-Writebolt Blog CMS For Supabase offers two setup types — as a standalone blog website, or a blog you can add to your existing website.
+The **`writebolt-astro`** directory is the primary way to run this project. Full detail lives in [`writebolt-astro/README.md`](writebolt-astro/README.md).
 
-### Standalone Blog
-
-A complete blog site from scratch.
+### 1. Clone and enter the Astro app
 
 ```bash
 git clone https://github.com/appy-eth/writebolt-supabase-blog-cms.git my-blog
-cd my-blog
+cd my-blog/writebolt-astro
 npm install
 ```
 
-Apply the database migration **before** the seed can succeed:
+### 2. Create a Supabase project and apply the schema
 
-1. Open **Supabase → SQL Editor → New query**
-2. Paste and run **`supabase/migrations/001_writebolt_blog_schema.sql`**
+1. Create a project at [supabase.com](https://supabase.com).
+2. Open **SQL Editor → New query**.
+3. Paste and run **`writebolt-astro/supabase/001_initial_schema.sql`** (Astro-specific schema — do not use the Next.js migration for this app).
 
-Then create your environment file and seed defaults (author, settings, nav, sample articles):
+### 3. Environment and seed
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your Supabase URL, anon key, service role key, admin username/password, and `SITE_URL` (default dev: `http://localhost:4321`). Then:
 
 ```bash
 npm run setup
 ```
 
-`npm run setup` writes `.env.local` (Supabase URL, anon + service role keys, encryption key, and optional `NEWSLETTER_API_KEY`). Have your keys ready from [supabase.com](https://supabase.com) → **Settings → API**. After the migration exists, setup runs the seed automatically. If the database was not ready yet, setup logs a warning; when the migration is in place, run:
-
-```bash
-npm run setup -- --seed
-```
+### 4. Run locally
 
 ```bash
 npm run dev
 ```
 
-Visit [localhost:3000](http://localhost:3000) → opens **Blog Settings** in the admin. The public blog is at [localhost:3000/blog](http://localhost:3000/blog).
+- **Blog:** [http://localhost:4321](http://localhost:4321)
+- **Admin:** [http://localhost:4321/admin/login](http://localhost:4321/admin/login)
 
 <details>
-<summary><strong>Troubleshooting: <code>npm install</code> says package.json not found</strong></summary>
+<summary><strong>Troubleshooting: wrong folder / missing <code>package.json</code></strong></summary>
 
-The repo you cloned must include the full app at the root (you should see `package.json` on GitHub). If the remote only had a README, clone again after the full project is pushed, or pull the latest `main`.
+The Astro app’s `package.json` is inside **`writebolt-astro/`**. If you run `npm install` at the repository root, you are in the **Next.js** project instead.
 
 </details>
 
 ---
 
-### Add to Existing App
+## Optional: Next.js template
 
-Already have a Next.js + Supabase app or website? One command only.
+The **repository root** contains the original Next.js 14 + Supabase CMS (MDX, optional AI, layout modes, `WriteboltAd`, etc.). Use it when you need React/MDX, BYOK AI in the admin, or **embedded** blog mode inside an existing Next app.
+
+### Standalone Next.js blog
+
+From the **root** of the cloned repo (not `writebolt-astro/`):
+
+```bash
+cd my-blog   # repo root, sibling of writebolt-astro/
+npm install
+```
+
+1. In Supabase **SQL Editor**, run **`supabase/migrations/001_writebolt_blog_schema.sql`** (Next.js schema — different tables from the Astro edition).
+2. Run the interactive wizard:
+
+```bash
+npm run setup
+```
+
+`npm run setup` writes `.env.local` (Supabase URL, anon + service role keys, encryption key, and optional `NEWSLETTER_API_KEY`). If the database was not ready yet, run **`npm run setup -- --seed`** after the migration succeeds.
+
+```bash
+npm run dev
+```
+
+- Opens **[localhost:3000/admin](http://localhost:3000/admin)** by default; public blog at **`/blog`**.
+
+### Add the blog to an existing Next.js + Supabase app
 
 ```bash
 npx writebolt-blog init
 ```
 
-This detects your project, copies the blog files in, runs the database migrations, and sets the layout to **embedded** mode (your app's layout wraps the blog — no duplicate headers/footers). Your blog is immediately live at `/blog`.
+> **Requires:** Node.js 18+, an existing **Next.js** project with Supabase configured in `.env.local`.
 
-> **Requires:** Node.js 18+, an existing Next.js project with Supabase configured in `.env.local`.
+### Next.js layout modes
 
----
+| Mode | What renders | Best for |
+|------|-------------|----------|
+| **Standalone** (default) | Full header with blog title, nav, footer | Dedicated blog site |
+| **Embedded** | Blog content only — your app provides the layout | `/blog` section in your existing app |
+| **Custom** | Blog header with your branding + nav links | Blog subdomain (`blog.company.com`) |
 
-### Using an AI Coding Agent?
+Switch anytime in **`/admin/settings`** → Layout.
 
-If you're building with **Claude Code**, **Cursor**, **Codex**, or **Gemini**, paste this prompt:
+### AI coding agent prompt (Next.js embed)
 
 <details>
-<summary><strong>📋 Copy prompt for AI coding agent</strong></summary>
+<summary><strong>📋 Copy prompt for AI coding agent (Next.js)</strong></summary>
 
 ```
 Add the Writebolt Blog CMS to my existing Next.js + Supabase project.
@@ -134,36 +173,26 @@ Steps:
 
 ---
 
-## Three Layout Modes
-
-| Mode | What renders | Best for |
-|------|-------------|----------|
-| **Standalone** (default) | Full header with blog title, nav, footer | Dedicated blog site |
-| **Embedded** | Blog content only — your app provides the layout | `/blog` section in your existing app |
-| **Custom** | Blog header with your branding + nav links | Blog subdomain (`blog.company.com`) |
-
-Switch anytime in `/admin/settings` → Layout. No code changes, takes effect immediately.
-
----
-
 ## Scheduled publishing
 
-Articles saved with a **Schedule** time in the admin editor stay in **`scheduled`** status until they are due. A [GitHub Action](.github/workflows/publish-drafts.yml) runs **every 6 hours** and sets due rows to **`published`** (when scheduling is enabled in **Admin → Settings → Publishing**).
+### Astro (`writebolt-astro/`)
 
-To enable automatic publishing from GitHub, add these **repository secrets** (Settings → Secrets and variables → Actions):
+Scheduled articles use **`scheduled_for`** on **`articles`**. Enable the workflow in **`writebolt-astro/.github/workflows/publish-scheduled.yml`** (runs every **15 minutes**). Add repository secrets:
 
-- **`SUPABASE_URL`** — your Supabase project URL (same as `NEXT_PUBLIC_SUPABASE_URL` in `.env.local`)
-- **`SUPABASE_SERVICE_ROLE_KEY`** — your service role key (same as in `.env.local`)
+- **`SUPABASE_URL`**
+- **`SUPABASE_SERVICE_ROLE_KEY`**
 
-You can also run the workflow manually from the **Actions** tab. If secrets are missing, scheduled articles stay in **Scheduled** until you publish them from the admin panel.
+### Next.js (repository root)
 
-You can turn off automatic publishing under **Admin → Settings** → **Automatic scheduled publishing**.
+Articles in **`scheduled`** status use **`scheduled_date`**. The root workflow **`.github/workflows/publish-drafts.yml`** runs every **6 hours** (or manually) and respects **`blog_settings.scheduled_publishing_enabled`**.
+
+Add the same **`SUPABASE_URL`** and **`SUPABASE_SERVICE_ROLE_KEY`** secrets to the repo. See the workflow file for the exact REST calls.
 
 ---
 
-## Writebolt ads (optional)
+## Writebolt ads (optional, Next.js)
 
-The template includes **`components/WriteboltAd.tsx`** — an opt-in ad unit that calls the Writebolt ads API when it exists. It is **not** inserted into any layout by default.
+The template includes **`components/WriteboltAd.tsx`** — an opt-in ad unit for the **Next.js** app. It is **not** wired into the Astro edition by default.
 
 1. Register your site at [writebolt.app](https://writebolt.app) to get a **Site ID** (when registration opens).
 2. Import and place the component where you want ads:
@@ -176,132 +205,130 @@ import { WriteboltAd } from "@/components/WriteboltAd";
 <WriteboltAd placement="footer" siteId="your-site-id" />
 ```
 
-Revenue share is **60% site owner / 40% Writebolt** when a `siteId` is set. Without `siteId`, house ads may still serve; revenue stays with Writebolt.
+Revenue share is **60% site owner / 40% Writebolt** when a `siteId` is set.
 
-If the API is unreachable or returns no ad, the component renders **nothing** (no empty boxes). Optional env override: `NEXT_PUBLIC_WRITEBOLT_ADS_API_URL` (defaults to `https://api.writebolt.app`).
+Optional env override: `NEXT_PUBLIC_WRITEBOLT_ADS_API_URL` (defaults to `https://api.writebolt.app`).
 
 ---
 
 ## Features
 
-### Blog Frontend
-- 📰 Article grid with sidebar, Featured / Latest / Popular tabs
-- 📖 Article pages with reading progress bar and auto-generated table of contents
-- 👤 Author profiles with bio, avatar, social links, and article listings
-- 🏷️ Categories and tags — graceful degradation (no empty UI if not configured yet)
-- 🔍 Full-text search powered by Supabase
-- 📡 RSS feed and dynamic sitemap
-- 🔗 SEO meta tags, Open Graph images, JSON-LD structured data
-- 📝 MDX with custom components (CTAs, lead magnets, callouts)
-- 🌙 Dark mode
-- 📱 Mobile responsive, accessible, Lighthouse 90+
+### Astro template (`writebolt-astro/`)
 
-### Admin CMS (`/admin`)
-- ✏️ Article editor with live Markdown preview
-- 📂 Category management with drag-to-reorder
-- 🖼️ Media library — browse, upload, delete images
-- 🧭 Navigation menu builder with drag-to-reorder
-- ⚙️ Full settings panel — site identity, layout, CTAs, newsletter, SEO, social links
-- 💾 Image storage — local filesystem (default) or Supabase Storage
+- Server-rendered pages with **`@astrojs/node`**
+- Markdown in admin; Supabase as source of truth
+- Categories in the header next to the logo
+- Admin at **`/admin`** (env-based session auth)
+- Scheduled publishing via GitHub Actions (see above)
 
-### AI Writing Assist (BYOK — Bring Your Own Key)
+### Next.js template (repository root)
 
-All AI features use **your own API keys**. No third-party signups. Your keys, your costs (~$0.01–$0.10 per article).
+- Article grid with sidebar, search, category/tag browsing
+- Article pages with reading progress and table of contents (**MDX** + custom components)
+- Author profiles, RSS, sitemap, SEO meta + JSON-LD
+- **Embedded** / standalone / custom layout modes
+- **`npx writebolt-blog init`** for existing apps
+- Optional **`WriteboltAd`** component
 
-| Feature | What it does |
-|---------|-------------|
-| ✨ Generate Draft | Full article from a topic |
-| 🔄 Rewrite | Improve clarity of selected text |
-| 📝 Expand | Turn bullet points into paragraphs |
-| 💡 Suggest Headlines | 5 alternative headline options |
-| 📋 Generate Excerpt | 1-2 sentence article summary |
-| 🎨 Generate Image | Featured/inline images via DALL-E or Replicate Flux |
+### Admin CMS (both stacks)
 
-Setup: add your OpenAI key in `/admin/settings/ai`. Encrypted with AES-256-GCM.
+- Articles, categories, settings (scope differs — see each template’s README)
+- Next.js adds: media library, nav builder, AI settings UI, image storage modes, newsletter API hook
+
+---
+
+## AI writing assist (Next.js)
+
+The **Next.js** admin includes BYOK (Bring Your Own Key) AI: generate drafts, rewrite, expand, headlines, excerpt, and images. Configure keys in **`/admin/settings/ai`**. The Astro edition focuses on a lightweight Markdown workflow without bundled AI providers.
+
+| Feature | Next.js |
+|---------|---------|
+| Generate Draft | ✓ |
+| Rewrite / Expand / Headlines / Excerpt | ✓ |
+| Generate Image (DALL-E / Replicate) | ✓ |
 
 ---
 
 ## Database
 
-All tables use Row Level Security. Safe to add alongside existing tables — no conflicts.
+**Important:** the Astro and Next.js templates use **different** SQL migrations and table shapes. Apply only the migration that matches the app you run.
+
+| Template | Migration file |
+|----------|----------------|
+| **Astro** | `writebolt-astro/supabase/001_initial_schema.sql` |
+| **Next.js** | `supabase/migrations/001_writebolt_blog_schema.sql` |
+
+### Next.js tables (summary)
 
 | Table | Purpose |
 |-------|---------|
-| `articles` | Blog posts with full-text search, reading time, SEO fields |
-| `authors` | Writer profiles with social links |
-| `blog_settings` | Runtime config — layout, CTAs, newsletter, SEO, social links |
-| `categories` | Optional taxonomy with auto-updating article counts |
-| `nav_items` | Configurable header navigation links |
-| `ai_settings` | Encrypted BYOK API key storage |
+| `articles` | Posts with full-text search, reading time, SEO fields |
+| `authors` | Writer profiles |
+| `blog_settings` | Layout, CTAs, newsletter, scheduling flags |
+| `categories` | Taxonomy |
+| `nav_items` | Header navigation |
+| `ai_settings` | Encrypted API keys |
 
-Apply **`supabase/migrations/001_writebolt_blog_schema.sql`** in the Supabase SQL Editor, then run **`npm run setup`** (or **`npm run setup -- --seed`** if you already have `.env.local`) to create default rows and sample articles.
+After the correct migration is applied, run **`npm run setup`** from the **same** project folder (Astro: `writebolt-astro/` with `.env`; Next.js: repo root with `.env.local`).
 
 ---
 
-## Image Storage
+## Image storage (Next.js)
 
 | Mode | Best for |
 |------|----------|
-| **Local** (default) | Quick start, blogs under ~200 articles |
-| **Supabase Storage** | High-volume blogs, CDN delivery |
+| **Local** (default) | Quick start |
+| **Supabase Storage** | Higher volume, CDN |
 
-Switch in `/admin/settings` → Image Storage.
+Configured in **`/admin/settings`** → Image Storage.
 
 ---
 
-## Project Structure
+## Project structure (monorepo)
 
 ```
+writebolt-astro/             ← Recommended entry point
+├── astro.config.mjs
+├── src/
+│   ├── pages/               # index, [slug], category, admin, api
+│   ├── layouts/
+│   └── lib/
+├── supabase/
+│   └── 001_initial_schema.sql
+└── scripts/setup.mjs
+
+# Next.js app (repository root)
 app/
-├── blog/                    # Blog frontend
-├── authors/                 # Author profiles
-├── admin/                   # CMS admin panel
-│   ├── categories/          # Category management
-│   ├── media/               # Media library
-│   └── settings/            # Blog + AI settings
+├── blog/
+├── admin/
 ├── api/
-│   ├── ai/                  # BYOK AI endpoints
-│   ├── upload/              # Image upload handler
-│   └── og/                  # Dynamic Open Graph images
-├── rss.xml/                 # RSS feed
-└── sitemap.xml/             # Dynamic sitemap
-
+├── rss.xml/
+└── sitemap.xml/
 components/
-├── WriteboltAd.tsx          # Optional Writebolt ad network (not used by default)
-├── blog/                    # Article cards, progress bar, TOC, search
-├── admin/                   # Editor, AI toolbar, media library
-├── callouts/                # CTA, lead magnet, newsletter
-├── author/                  # Author card, profile
-├── layout/                  # Blog header, nav, footer, sidebar
-└── seo/                     # Meta tags, JSON-LD
-
 lib/
-├── supabase/                # Client, server, query helpers
-├── ai/                      # Provider, prompts, text/image generation
-├── storage/                 # Local + Supabase Storage abstraction
-├── mdx/                     # MDX config and components
-└── utils/                   # Reading time, slugs, search
+supabase/migrations/
 ```
 
 ---
 
-## Environment Variables
+## Environment variables
+
+### Astro (`writebolt-astro/.env`)
+
+See **`writebolt-astro/.env.example`**: `SUPABASE_*`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SITE_URL`.
+
+### Next.js (repository root, `.env.local`)
 
 ```env
-# Required (set during setup)
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-SETTINGS_ENCRYPTION_KEY=  # auto-generated during setup
+SETTINGS_ENCRYPTION_KEY=  # from npm run setup
 
-# Optional — newsletter API (used by /api/newsletter/subscribe; can be set during setup)
+# Optional
 # NEWSLETTER_API_KEY=
-
-# Optional (can also be set in /admin/settings/ai)
-OPENAI_API_KEY=sk-...
-REPLICATE_API_KEY=r8_...
-
-# Optional — Writebolt ads API base URL (default: https://api.writebolt.app)
+# OPENAI_API_KEY=sk-...
+# REPLICATE_API_KEY=r8_...
 # NEXT_PUBLIC_WRITEBOLT_ADS_API_URL=https://api.writebolt.app
 ```
 
@@ -309,29 +336,19 @@ REPLICATE_API_KEY=r8_...
 
 ## Deployment
 
-Works anywhere Next.js runs:
+### Astro
 
-- **Vercel** — `npx vercel`, add env vars in project settings
-- **Netlify** — works with the Next.js adapter
-- **Self-hosted** — `npm run build && npm start`
+Build output targets **Node** by default (`npm run build` → `node dist/server/entry.mjs`). Deploy on Vercel, Railway, Fly, etc. For Vercel, you can switch to **`@astrojs/vercel`** in `writebolt-astro/astro.config.mjs`.
+
+### Next.js
+
+Works on **Vercel**, **Netlify** (Next adapter), or self-hosted **`npm run build && npm start`** from the repo root.
 
 ---
 
 ## Supercharge with Writebolt ⚡
 
-Love the blog template? **[Writebolt](https://writebolt.com)** takes your blog to the next level.
-
-| | This Template (BYOK) | Writebolt |
-|---|---|---|
-| **Article quality** | Basic drafts | Researched, SEO-optimised, 2,000 words |
-| **Internal links** | None | Auto-discovered from your site |
-| **External citations** | None | Perplexity-powered research |
-| **Images** | Manual prompt, one at a time | Auto-generated from content |
-| **Publishing** | Write in admin panel | Pull request via GitHub App |
-| **Backlinks** | None | Link Pro placement network |
-| **Bulk article creation** | Limited | 10 at a time |
-
-Writebolt reads the `writebolt.config.json` in your repo and publishes directly — zero configuration.
+Love the blog template? **[Writebolt](https://writebolt.com)** takes your blog further with researched long-form content, internal linking, and publishing via GitHub.
 
 **[Try Writebolt Free →](https://writebolt.com)**
 
@@ -339,7 +356,7 @@ Writebolt reads the `writebolt.config.json` in your repo and publishes directly 
 
 ## Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) if present.
+Issues and PRs are welcome for **either** template (`writebolt-astro/` or the Next.js root). Mention which stack you are changing in the description.
 
 ## License
 

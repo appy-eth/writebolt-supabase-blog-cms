@@ -23,7 +23,8 @@ function requirePackageJson(): void {
   if (!fs.existsSync(pkg)) {
     console.error(
       "\n❌ No package.json in this folder.\n\n" +
-        "You must clone the full Writebolt blog repository (it includes Next.js, package.json, app/, etc.).\n" +
+        "• Recommended: cd into writebolt-astro/ and use npm install && npm run setup (Astro template).\n" +
+        "• This script is for the Next.js app at the repository root (clone must include package.json, app/, etc.).\n" +
         "If you only see a README on GitHub, the app source was not pushed — fix the repo or clone from the correct branch.\n"
     );
     process.exit(1);

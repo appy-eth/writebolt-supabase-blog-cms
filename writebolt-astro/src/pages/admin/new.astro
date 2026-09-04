@@ -1,0 +1,119 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { requireAuth } from '../../lib/auth';
+import { adminGetCategories, adminGetAuthors } from '../../lib/data';
+import { supabaseAdmin } from '../../lib/supabase';
+import { slugify } from '../../lib/utils';
+
+const authRedirect = requireAuth(Astro.request);
+if (authRedirect) return authRedirect;
+
+const categories = await adminGetCategories();
+const authors = await adminGetAuthors();
+
+let error = '';
+let success = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const headline = form.get('headline')?.toString() || '';
+  const slug = form.get('slug')?.toString() || slugify(headline);
+  const content_markdown = form.get('content_markdown')?.toString() || '';
+  const excerpt = form.get('excerpt')?.toString() || '';
+  const featured_image = form.get('featured_image')?.toString() || '';
+  const category_id = form.get('category_id')?.toString() || null;
+  const author_id = form.get('author_id')?.toString() || null;
+  const action = form.get('action')?.toString() || 'draft';
+
+  const status = action === 'publish' ? 'published' : action === 'schedule' ? 'scheduled' : 'draft';
+  const published_at = status === 'published' ? new Date().toISOString() : null;
+  const scheduled_for = status === 'scheduled' ? form.get('scheduled_for')?.toString() || null : null;
+
+  const { error: dbError } = await supabaseAdmin.from('articles').insert({
+    headline,
+    slug,
+    content_markdown,
+    excerpt,
+    featured_image,
+    category_id: category_id || null,
+    author_id: author_id || null,
+    status,
+    published_at,
+    scheduled_for,
+  });
+
+  if (dbError) {
+    error = dbError.message;
+  } else {
+    return Astro.redirect('/admin');
+  }
+}
+---
+
+<Admin title="New Article" active="new">
+  <div class="admin-header">
+    <h1>New Article</h1>
+  </div>
+
+  {error && <div class="login-error" style="margin-bottom: 1rem;">{error}</div>}
+
+  <form method="POST">
+    <div class="form-group">
+      <label for="headline">Headline</label>
+      <input type="text" id="headline" name="headline" class="form-input" required
+        oninput="document.getElementById('slug').value = this.value.toLowerCase().replace(/[^\w\s-]/g,'').replace(/[\s_]+/g,'-').replace(/^-+|-+$/g,'')" />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="slug">Slug</label>
+        <input type="text" id="slug" name="slug" class="form-input" />
+      </div>
+      <div class="form-group">
+        <label for="featured_image">Featured Image URL</label>
+        <input type="url" id="featured_image" name="featured_image" class="form-input" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="category_id">Category</label>
+        <select id="category_id" name="category_id" class="form-input">
+          <option value="">None</option>
+          {categories.map((c) => (
+            <option value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="author_id">Author</label>
+        <select id="author_id" name="author_id" class="form-input">
+          {authors.map((a) => (
+            <option value={a.id} selected={a.is_default}>{a.name}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="excerpt">Excerpt</label>
+      <input type="text" id="excerpt" name="excerpt" class="form-input" />
+    </div>
+
+    <div class="form-group">
+      <label for="content_markdown">Content (Markdown)</label>
+      <textarea id="content_markdown" name="content_markdown" class="form-input"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="scheduled_for">Schedule For (optional)</label>
+      <input type="datetime-local" id="scheduled_for" name="scheduled_for" class="form-input" />
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+      <button type="submit" name="action" value="draft" class="btn">Save as Draft</button>
+      <button type="submit" name="action" value="publish" class="btn btn--primary">Publish Now</button>
+      <button type="submit" name="action" value="schedule" class="btn btn--accent">Schedule</button>
+    </div>
+  </form>
+</Admin>

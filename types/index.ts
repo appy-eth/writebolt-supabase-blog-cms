@@ -99,6 +99,7 @@ export interface Category {
   description: string | null;
   display_order: number;
   article_count: number;
+  home_page_featured: boolean;
   created_at: string;
 }
 

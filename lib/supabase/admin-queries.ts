@@ -60,9 +60,13 @@ export async function updateArticle(
   updates: Partial<Article>
 ): Promise<Article | null> {
   const supabase = db();
+  // Strip the joined author field and the fts generated column — neither can be written directly
+  const safeUpdates = { ...updates } as Record<string, unknown>;
+  delete safeUpdates.author;
+  delete safeUpdates.fts;
   const { data, error } = await supabase
     .from("articles")
-    .update(updates)
+    .update(safeUpdates)
     .eq("id", id)
     .select("*, author:authors(*)")
     .single();

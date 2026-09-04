@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import type { BlogSettings } from "@/types";
 import { BlogSettingsForm } from "@/components/admin/blog-settings-form";
-import { NavMenuEditor } from "@/components/admin/nav-menu-editor";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<BlogSettings | null>(null);
@@ -37,11 +36,8 @@ export default function SettingsPage() {
         Configure your blog&apos;s identity, layout, and features
       </p>
 
-      <div className="mt-8 grid gap-8 xl:grid-cols-[1fr_400px]">
+      <div className="mt-8">
         <BlogSettingsForm initialSettings={settings} />
-        <div>
-          <NavMenuEditor />
-        </div>
       </div>
     </div>
   );

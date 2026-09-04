@@ -3,18 +3,20 @@ import type { Metadata } from "next";
 import {
   getBlogSettings,
   getPublishedArticles,
-  getPopularArticles,
+  getFeaturedCategoryArticles,
   getCategories,
-  hasCategories as checkHasCategories,
 } from "@/lib/supabase/queries";
 import { generateBlogMetadata } from "@/components/seo/meta-tags";
 import { JsonLd, blogJsonLd } from "@/components/seo/json-ld";
-import { ViewTabs } from "@/components/blog/view-tabs";
 import { CategoryFilter } from "@/components/blog/category-filter";
 import { SearchBar } from "@/components/blog/search-bar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Pagination } from "@/components/blog/pagination";
 import { ArticleCard } from "@/components/blog/article-card";
+import {
+  isEmbeddedBlogLayout,
+  shouldShowPageBlogTitle,
+} from "@/lib/blog-display";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getBlogSettings();
@@ -27,8 +29,8 @@ export default async function BlogPage({
   searchParams: { q?: string; page?: string };
 }) {
   const settings = await getBlogSettings();
-  const categoriesExist = await checkHasCategories();
-  const categories = categoriesExist ? await getCategories() : [];
+  const categories = await getCategories();
+  const embedded = isEmbeddedBlogLayout(settings);
 
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10));
   const searchQuery = searchParams.q;
@@ -39,31 +41,33 @@ export default async function BlogPage({
     search: searchQuery,
   });
 
-  const popularArticles = await getPopularArticles(
-    settings.posts_per_page
-  );
+  const featuredCategoryArticles = await getFeaturedCategoryArticles();
 
   const totalPages = Math.ceil(total / settings.posts_per_page);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const isSearching = !!searchQuery;
+  const showPageTitle = shouldShowPageBlogTitle(settings);
 
   return (
     <>
       <JsonLd data={blogJsonLd(settings, siteUrl)} />
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Blog title + tabs row */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          {settings.show_blog_title && (
-            <h1 className="font-serif text-4xl font-bold text-[#111827]">
-              {settings.blog_name}
-            </h1>
-          )}
-        </div>
+        {showPageTitle && (
+          <h1 className="mb-6 font-serif text-4xl font-bold text-gray-900 dark:text-gray-100">
+            {settings.blog_name}
+          </h1>
+        )}
 
-        {/* Category filter + search */}
-        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          {categoriesExist && <CategoryFilter categories={categories} />}
+        {embedded && !isSearching && (
+          <div className="mb-6">
+            <CategoryFilter categories={categories} />
+          </div>
+        )}
+
+        <div
+          className={`flex justify-end mb-8`}
+        >
           <div className="w-full sm:w-64">
             <Suspense fallback={null}>
               <SearchBar />
@@ -71,10 +75,8 @@ export default async function BlogPage({
           </div>
         </div>
 
-        {/* Main content + sidebar */}
-        <div className="mt-8 flex flex-col gap-10 lg:flex-row">
-          {/* Main area */}
-          <div className="flex-1 min-w-0">
+        <div className="flex flex-col gap-10 lg:flex-row">
+          <div className="min-w-0 flex-1">
             {isSearching ? (
               <>
                 <p className="mb-6 text-sm text-[#6B7280]">
@@ -93,20 +95,61 @@ export default async function BlogPage({
                 )}
               </>
             ) : (
-              <ViewTabs
-                latestArticles={latestArticles}
-                popularArticles={popularArticles}
-              />
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {latestArticles.map((article) => (
+                  <ArticleCard key={article.id} article={article} />
+                ))}
+              </div>
+            )}
+
+            {!isSearching && latestArticles.length === 0 && (
+              <div className="mt-12 text-center">
+                <p className="text-lg text-gray-500 dark:text-gray-400">
+                  No articles published yet.
+                </p>
+                <p className="mt-2 text-sm text-gray-400 dark:text-gray-500">
+                  Visit{" "}
+                  <a href="/admin/new" className="text-[#2563EB] hover:underline">
+                    /admin/new
+                  </a>{" "}
+                  to write your first article.
+                </p>
+              </div>
             )}
 
             <Pagination
               currentPage={page}
               totalPages={totalPages}
-              basePath={searchQuery ? `/blog?q=${encodeURIComponent(searchQuery)}` : "/blog"}
+              basePath={
+                searchQuery
+                  ? `/blog?q=${encodeURIComponent(searchQuery)}`
+                  : "/blog"
+              }
             />
+
+            {!isSearching &&
+              featuredCategoryArticles.map(({ category, articles }) => (
+                <section key={category.id} className="mt-16">
+                  <div className="mb-6 flex items-center justify-between">
+                    <h2 className="font-serif text-2xl font-bold text-gray-900 dark:text-gray-100">
+                      {category.name}
+                    </h2>
+                    <a
+                      href={`/blog/category/${category.slug}`}
+                      className="text-sm font-medium text-[#2563EB] hover:underline"
+                    >
+                      View all →
+                    </a>
+                  </div>
+                  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {articles.map((article) => (
+                      <ArticleCard key={article.id} article={article} />
+                    ))}
+                  </div>
+                </section>
+              ))}
           </div>
 
-          {/* Sidebar */}
           <Sidebar settings={settings} />
         </div>
       </div>

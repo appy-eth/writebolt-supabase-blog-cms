@@ -6,9 +6,10 @@ import {
   getCategories,
 } from "@/lib/supabase/queries";
 import { ArticleCard } from "@/components/blog/article-card";
-import { CategoryFilter } from "@/components/blog/category-filter";
 import { Pagination } from "@/components/blog/pagination";
 import { Sidebar } from "@/components/layout/sidebar";
+import { CategoryFilter } from "@/components/blog/category-filter";
+import { isEmbeddedBlogLayout } from "@/lib/blog-display";
 
 interface CategoryPageProps {
   params: { category: string };
@@ -45,29 +46,31 @@ export default async function CategoryPage({
   });
 
   const totalPages = Math.ceil(total / settings.posts_per_page);
+  const embedded = isEmbeddedBlogLayout(settings);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        {settings.show_blog_title && (
-          <h1 className="font-serif text-4xl font-bold text-[#111827]">
-            {settings.blog_name}
-          </h1>
-        )}
-      </div>
-
-      <div className="mt-6">
-        <CategoryFilter
-          categories={categories}
-          activeCategory={categorySlug}
-        />
-      </div>
-
-      <div className="mt-8 flex flex-col gap-10 lg:flex-row">
+      {embedded && (
+        <div className="mb-6">
+          <CategoryFilter
+            categories={categories}
+            activeCategory={categorySlug}
+          />
+        </div>
+      )}
+      <div className="flex flex-col gap-10 lg:flex-row">
         <div className="flex-1 min-w-0">
-          <p className="mb-6 text-sm font-medium text-[#6B7280]">
-            Showing articles in <span className="text-[#111827]">{category.name}</span>
-          </p>
+          <h1 className="font-serif text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            {category.name}
+          </h1>
+          {category.description && (
+            <p className="text-[#6B7280] mb-6">{category.description}</p>
+          )}
+          {!category.description && (
+            <p className="mb-6 text-sm text-[#6B7280]">
+              {total} article{total !== 1 ? "s" : ""}
+            </p>
+          )}
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {articles.map((article) => (

@@ -1,0 +1,65 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { requireAuth } from '../../lib/auth';
+import { adminGetSettings } from '../../lib/data';
+import { supabaseAdmin } from '../../lib/supabase';
+
+const authRedirect = requireAuth(Astro.request);
+if (authRedirect) return authRedirect;
+
+let error = '';
+let success = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const site_name = form.get('site_name')?.toString() || 'My Blog';
+  const site_description = form.get('site_description')?.toString() || '';
+  const logo_url = form.get('logo_url')?.toString() || '';
+
+  const settings = await adminGetSettings();
+  const { error: dbError } = await supabaseAdmin.from('site_settings').update({
+    site_name,
+    site_description,
+    logo_url,
+    updated_at: new Date().toISOString(),
+  }).eq('id', settings.id);
+
+  if (dbError) {
+    error = dbError.message;
+  } else {
+    success = 'Settings saved.';
+  }
+}
+
+const settings = await adminGetSettings();
+---
+
+<Admin title="Settings" active="settings">
+  <div class="admin-header">
+    <h1>Site Settings</h1>
+  </div>
+
+  {error && <div class="login-error" style="margin-bottom: 1rem;">{error}</div>}
+  {success && <div style="background: #e6f7ed; color: #1a7a3a; padding: 0.6rem 1rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">{success}</div>}
+
+  <form method="POST" style="max-width: 560px;">
+    <div class="form-group">
+      <label for="site_name">Site Name</label>
+      <input type="text" id="site_name" name="site_name" class="form-input" value={settings?.site_name || ''} required />
+      <small style="color: var(--muted); font-size: 0.8rem;">Appears in the header and browser tab.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="site_description">Site Description</label>
+      <input type="text" id="site_description" name="site_description" class="form-input" value={settings?.site_description || ''} />
+    </div>
+
+    <div class="form-group">
+      <label for="logo_url">Logo URL (optional)</label>
+      <input type="url" id="logo_url" name="logo_url" class="form-input" value={settings?.logo_url || ''} />
+      <small style="color: var(--muted); font-size: 0.8rem;">If set, replaces the text site name in the header.</small>
+    </div>
+
+    <button type="submit" class="btn btn--primary" style="margin-top: 0.5rem;">Save Settings</button>
+  </form>
+</Admin>

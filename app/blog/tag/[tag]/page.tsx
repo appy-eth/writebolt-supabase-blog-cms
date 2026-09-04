@@ -8,6 +8,7 @@ import {
 import { ArticleCard } from "@/components/blog/article-card";
 import { Pagination } from "@/components/blog/pagination";
 import { Sidebar } from "@/components/layout/sidebar";
+import { shouldShowPageBlogTitle } from "@/lib/blog-display";
 
 interface TagPageProps {
   params: { tag: string };
@@ -48,8 +49,8 @@ export default async function TagPage({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      {settings.show_blog_title && (
-        <h1 className="font-serif text-4xl font-bold text-[#111827]">
+      {shouldShowPageBlogTitle(settings) && (
+        <h1 className="mb-8 font-serif text-4xl font-bold text-[#111827] dark:text-gray-100">
           {settings.blog_name}
         </h1>
       )}

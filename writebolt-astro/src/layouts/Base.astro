@@ -1,0 +1,65 @@
+---
+import '../styles/global.css';
+import { getSiteSettings, getNavCategories } from '../lib/data';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const settings = await getSiteSettings();
+const categories = await getNavCategories();
+const { title, description } = Astro.props;
+
+const pageTitle = title ? `${title} — ${settings.site_name}` : settings.site_name;
+const pageDesc = description || settings.site_description;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{pageTitle}</title>
+  <meta name="description" content={pageDesc} />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <!-- Logo / Site Name -->
+      <a href="/" class="site-logo">
+        {settings.logo_url
+          ? <img src={settings.logo_url} alt={settings.site_name} />
+          : settings.site_name
+        }
+      </a>
+
+      <!-- Categories — inline, right next to logo -->
+      {categories.length > 0 && (
+        <nav class="header-nav" aria-label="Categories">
+          {categories.map((cat) => (
+            <a
+              href={`/category/${cat.slug}`}
+              aria-current={Astro.url.pathname === `/category/${cat.slug}` ? 'page' : undefined}
+            >
+              {cat.name}
+            </a>
+          ))}
+        </nav>
+      )}
+
+      <div class="header-spacer"></div>
+    </div>
+  </header>
+
+  <!-- No duplicate site title here — content starts directly -->
+  <main class="page-wrap">
+    <slot />
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; {new Date().getFullYear()} {settings.site_name} · Powered by <a href="https://writebolt.com" target="_blank" rel="noopener">Writebolt</a></p>
+  </footer>
+</body>
+</html>

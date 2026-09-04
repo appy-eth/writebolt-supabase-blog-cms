@@ -62,6 +62,7 @@ create table if not exists public.categories (
   description text,
   display_order integer not null default 0,
   article_count integer not null default 0,
+  home_page_featured boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -116,18 +117,6 @@ create table if not exists public.blog_settings (
   updated_at timestamptz not null default now()
 );
 
--- ── Nav items ───────────────────────────────────────────────
-create table if not exists public.nav_items (
-  id uuid primary key default gen_random_uuid(),
-  label text not null,
-  url text not null,
-  open_in_new_tab boolean not null default false,
-  display_order integer not null default 0,
-  is_visible boolean not null default true,
-  icon text,
-  created_at timestamptz not null default now()
-);
-
 -- ── AI settings (BYOK in admin) ─────────────────────────────
 create table if not exists public.ai_settings (
   id uuid primary key default gen_random_uuid(),
@@ -143,7 +132,6 @@ drop policy if exists "allow_all" on public.authors;
 drop policy if exists "allow_all" on public.articles;
 drop policy if exists "allow_all" on public.categories;
 drop policy if exists "allow_all" on public.blog_settings;
-drop policy if exists "allow_all" on public.nav_items;
 drop policy if exists "allow_all" on public.ai_settings;
 drop policy if exists "anon_select_published_articles" on public.articles;
 
@@ -151,7 +139,6 @@ alter table public.authors enable row level security;
 alter table public.articles enable row level security;
 alter table public.categories enable row level security;
 alter table public.blog_settings enable row level security;
-alter table public.nav_items enable row level security;
 alter table public.ai_settings enable row level security;
 
 create policy "allow_all" on public.authors for all using (true) with check (true);
@@ -166,5 +153,4 @@ create policy "anon_select_published_articles"
 
 create policy "allow_all" on public.categories for all using (true) with check (true);
 create policy "allow_all" on public.blog_settings for all using (true) with check (true);
-create policy "allow_all" on public.nav_items for all using (true) with check (true);
 create policy "allow_all" on public.ai_settings for all using (true) with check (true);

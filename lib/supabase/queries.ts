@@ -1,5 +1,5 @@
 import { createClient } from "./server";
-import type { Article, Author, BlogSettings, Category, NavItem } from "@/types";
+import type { Article, Author, BlogSettings, Category } from "@/types";
 
 export async function getBlogSettings(): Promise<BlogSettings> {
   const supabase = createClient();
@@ -240,15 +240,32 @@ export async function hasTaggedArticles(): Promise<boolean> {
   return (count ?? 0) > 0;
 }
 
-export async function getNavItems(): Promise<NavItem[]> {
+export async function getFeaturedCategoryArticles(): Promise<
+  { category: Category; articles: Article[] }[]
+> {
   const supabase = createClient();
-  const { data } = await supabase
-    .from("nav_items")
+  const { data: cats } = await supabase
+    .from("categories")
     .select("*")
-    .eq("is_visible", true)
+    .eq("home_page_featured", true)
     .order("display_order");
 
-  return (data ?? []) as NavItem[];
+  if (!cats || cats.length === 0) return [];
+
+  const results = await Promise.all(
+    (cats as Category[]).map(async (cat) => {
+      const { data: articles } = await supabase
+        .from("articles")
+        .select("*, author:authors(*)")
+        .eq("status", "published")
+        .eq("category", cat.slug)
+        .order("published_at", { ascending: false })
+        .limit(3);
+      return { category: cat, articles: (articles ?? []) as Article[] };
+    })
+  );
+
+  return results.filter((r) => r.articles.length > 0);
 }
 
 export async function getAllTags(): Promise<string[]> {

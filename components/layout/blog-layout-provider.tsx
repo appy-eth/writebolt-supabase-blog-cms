@@ -1,4 +1,4 @@
-import { getBlogSettings, getNavItems } from "@/lib/supabase/queries";
+import { getBlogSettings, getCategories } from "@/lib/supabase/queries";
 import { BlogHeader } from "./blog-header";
 import { BlogFooter } from "./blog-footer";
 
@@ -8,7 +8,7 @@ export async function BlogLayoutProvider({
   children: React.ReactNode;
 }) {
   const settings = await getBlogSettings();
-  const navItems = await getNavItems();
+  const categories = await getCategories();
 
   const showHeader =
     settings.layout_mode === "standalone" ||
@@ -20,7 +20,7 @@ export async function BlogLayoutProvider({
   return (
     <>
       {showHeader && settings.show_header && (
-        <BlogHeader settings={settings} navItems={navItems} />
+        <BlogHeader settings={settings} categories={categories} />
       )}
       <main className="min-h-screen">{children}</main>
       {showFooter && settings.show_footer && (

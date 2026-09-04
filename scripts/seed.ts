@@ -86,17 +86,6 @@ export async function seed(): Promise<void> {
     console.log("✅ Created default blog_settings row.");
   }
 
-  const { data: nav } = await supabase.from("nav_items").select("id").limit(1);
-  if (!nav || nav.length === 0) {
-    await supabase.from("nav_items").insert({
-      label: "Blog",
-      url: "/blog",
-      display_order: 0,
-      is_visible: true,
-    });
-    console.log("✅ Created default nav item.");
-  }
-
   const { count: catCount } = await supabase
     .from("categories")
     .select("id", { count: "exact", head: true });
@@ -216,15 +205,19 @@ Writebolt offers 3 free articles to start. No credit card required.
     category: string;
     excerpt: string;
     content_markdown: string;
+    featured_image: string;
+    featured_image_alt: string;
   }[] = [
     {
-      headline: "Hello World — Your New Blog is Live",
+      headline: "Greetings, World — Your New Blog is Live",
       slug: "hello-world",
       published_at: new Date(t - 3 * msDay).toISOString(),
       category: "getting-started",
       excerpt:
         "Welcome to your new blog powered by Writebolt, Next.js, and Supabase.",
       content_markdown: body1,
+      featured_image: "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200&q=80&auto=format&fit=crop",
+      featured_image_alt: "Person typing on a laptop at a bright desk",
     },
     {
       headline: "How to Use Drafts and Scheduled Publishing",
@@ -234,6 +227,8 @@ Writebolt offers 3 free articles to start. No credit card required.
       excerpt:
         "Learn how drafts, scheduling, and the admin filters work in Writebolt.",
       content_markdown: body2,
+      featured_image: "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=1200&q=80&auto=format&fit=crop",
+      featured_image_alt: "Open planner notebook on a desk",
     },
     {
       headline: "Earn Revenue with the Writebolt Ad Network",
@@ -243,6 +238,8 @@ Writebolt offers 3 free articles to start. No credit card required.
       excerpt:
         "Optional ads that respect privacy — earn revenue from your tech blog.",
       content_markdown: body3,
+      featured_image: "https://images.unsplash.com/photo-1579621970795-87facc2f976d?w=1200&q=80&auto=format&fit=crop",
+      featured_image_alt: "Coins and currency representing online revenue",
     },
     {
       headline: "Scale Your Content with Writebolt Pro",
@@ -252,6 +249,8 @@ Writebolt offers 3 free articles to start. No credit card required.
       excerpt:
         "AI generation, bulk scheduling, and more when you outgrow the template.",
       content_markdown: body4,
+      featured_image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&q=80&auto=format&fit=crop",
+      featured_image_alt: "Analytics dashboard on a laptop screen",
     },
   ];
 
@@ -265,8 +264,8 @@ Writebolt offers 3 free articles to start. No credit card required.
       content_markdown: s.content_markdown,
       category: s.category,
       tags: [] as string[],
-      featured_image: null,
-      featured_image_alt: null,
+      featured_image: s.featured_image,
+      featured_image_alt: s.featured_image_alt,
       seo_title: null,
       seo_description: null,
       status: "published" as const,

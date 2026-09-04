@@ -1,0 +1,105 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { requireAuth } from '../../lib/auth';
+import { adminGetCategories } from '../../lib/data';
+import { supabaseAdmin } from '../../lib/supabase';
+import { slugify } from '../../lib/utils';
+
+const authRedirect = requireAuth(Astro.request);
+if (authRedirect) return authRedirect;
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = form.get('action')?.toString() || '';
+
+  if (action === 'add') {
+    const name = form.get('name')?.toString() || '';
+    const slug = slugify(name);
+    const show_in_nav = form.get('show_in_nav') === 'on';
+    const { error: dbError } = await supabaseAdmin.from('categories').insert({ name, slug, show_in_nav });
+    if (dbError) error = dbError.message;
+  }
+
+  if (action === 'delete') {
+    const id = form.get('id')?.toString();
+    await supabaseAdmin.from('categories').delete().eq('id', id);
+  }
+
+  if (action === 'toggle_nav') {
+    const id = form.get('id')?.toString();
+    const current = form.get('current_nav')?.toString() === 'true';
+    await supabaseAdmin.from('categories').update({ show_in_nav: !current }).eq('id', id);
+  }
+}
+
+const categories = await adminGetCategories();
+---
+
+<Admin title="Categories" active="categories">
+  <div class="admin-header">
+    <h1>Categories</h1>
+  </div>
+
+  {error && <div class="login-error" style="margin-bottom: 1rem;">{error}</div>}
+
+  <!-- Add category form -->
+  <form method="POST" style="display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 2rem;">
+    <input type="hidden" name="action" value="add" />
+    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+      <label for="name">New Category</label>
+      <input type="text" id="name" name="name" class="form-input" placeholder="e.g. Technology" required />
+    </div>
+    <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; padding-bottom: 0.15rem;">
+      <input type="checkbox" name="show_in_nav" checked /> Show in nav
+    </label>
+    <button type="submit" class="btn btn--primary">Add</button>
+  </form>
+
+  <!-- Existing categories -->
+  {categories.length === 0 ? (
+    <p style="color: var(--muted);">No categories yet.</p>
+  ) : (
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Slug</th>
+          <th>In Header Nav</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {categories.map((c) => (
+          <tr>
+            <td><strong>{c.name}</strong></td>
+            <td style="color: var(--muted);">/{c.slug}</td>
+            <td>
+              <form method="POST" style="display: inline;">
+                <input type="hidden" name="action" value="toggle_nav" />
+                <input type="hidden" name="id" value={c.id} />
+                <input type="hidden" name="current_nav" value={String(c.show_in_nav)} />
+                <button type="submit" class="btn btn--sm">
+                  {c.show_in_nav ? '✓ Visible' : '✗ Hidden'}
+                </button>
+              </form>
+            </td>
+            <td>
+              <form method="POST" style="display: inline;"
+                onsubmit="return confirm('Delete this category?')">
+                <input type="hidden" name="action" value="delete" />
+                <input type="hidden" name="id" value={c.id} />
+                <button type="submit" class="btn btn--sm" style="color: var(--accent);">Delete</button>
+              </form>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+
+  <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--muted);">
+    Categories marked "Visible" appear in the site header next to the logo.
+  </p>
+</Admin>

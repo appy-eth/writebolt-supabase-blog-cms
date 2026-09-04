@@ -245,6 +245,18 @@ export function CategoryManager() {
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
+                      onClick={() => handleUpdate(cat.id, { home_page_featured: !cat.home_page_featured })}
+                      title={cat.home_page_featured ? "Featured on home page — click to unfeature" : "Click to feature on home page"}
+                      className={`rounded px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                        cat.home_page_featured
+                          ? "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                          : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                      }`}
+                    >
+                      ★ Home
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setEditing(cat.id)}
                       className="rounded px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
                     >
@@ -266,8 +278,7 @@ export function CategoryManager() {
       )}
 
       <p className="mt-4 text-xs text-gray-400">
-        Use arrows to reorder. Article counts update automatically. Categories
-        appear in blog filters once created.
+        Use arrows to reorder. Click ★ Home to feature a category&apos;s latest 3 articles on the home page. Article counts update automatically.
       </p>
     </div>
   );

@@ -1,0 +1,49 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  active?: string;
+}
+
+const { title, active } = Astro.props;
+
+const navItems = [
+  { href: '/admin', label: 'Articles', key: 'articles' },
+  { href: '/admin/new', label: 'New Article', key: 'new' },
+  { href: '/admin/categories', label: 'Categories', key: 'categories' },
+  { href: '/admin/settings', label: 'Settings', key: 'settings' },
+];
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title} — Writebolt Admin</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar__brand">
+        <a href="/admin">✦ Writebolt</a>
+      </div>
+      <nav>
+        {navItems.map((item) => (
+          <a href={item.href} class={active === item.key ? 'active' : ''}>
+            {item.label}
+          </a>
+        ))}
+        <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 1rem 0;" />
+        <a href="/" target="_blank">View Site ↗</a>
+        <a href="/api/auth/logout">Log Out</a>
+      </nav>
+    </aside>
+    <div class="admin-main">
+      <slot />
+    </div>
+  </div>
+</body>
+</html>

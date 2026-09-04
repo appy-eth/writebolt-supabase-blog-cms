@@ -1,0 +1,42 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getArticlesByCategory } from '../../lib/data';
+import { formatDate } from '../../lib/utils';
+
+const { slug } = Astro.params;
+const { category, articles } = await getArticlesByCategory(slug!);
+
+if (!category) {
+  return Astro.redirect('/404');
+}
+---
+
+<Base title={category.name}>
+  <h1 class="category-title">{category.name}</h1>
+
+  {articles.length === 0 ? (
+    <p style="color: var(--muted);">No articles in this category yet.</p>
+  ) : (
+    <div class="article-grid">
+      {articles.map((article) => (
+        <article class="article-card">
+          {article.featured_image && (
+            <img class="article-card__img" src={article.featured_image} alt={article.headline} loading="lazy" />
+          )}
+          <div class="article-card__body">
+            <h2 class="article-card__title">
+              <a href={`/${article.slug}`}>{article.headline}</a>
+            </h2>
+            {article.excerpt && <p class="article-card__excerpt">{article.excerpt}</p>}
+            <div class="article-card__meta">
+              {article.authors?.avatar_url && <img src={article.authors.avatar_url} alt="" />}
+              <span>{article.authors?.name}</span>
+              <span>·</span>
+              <time>{formatDate(article.published_at)}</time>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  )}
+</Base>

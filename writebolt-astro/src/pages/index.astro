@@ -1,0 +1,43 @@
+---
+import Base from '../layouts/Base.astro';
+import { getPublishedArticles } from '../lib/data';
+import { formatDate } from '../lib/utils';
+
+const { articles } = await getPublishedArticles();
+---
+
+<Base>
+  {articles.length === 0 ? (
+    <div style="text-align: center; padding: 4rem 0;">
+      <p style="color: var(--muted); font-size: 1.1rem;">No articles published yet.</p>
+      <a href="/admin" class="btn btn--primary" style="margin-top: 1rem;">Go to Admin →</a>
+    </div>
+  ) : (
+    <div class="article-grid">
+      {articles.map((article) => (
+        <article class="article-card">
+          {article.featured_image && (
+            <img class="article-card__img" src={article.featured_image} alt={article.headline} loading="lazy" />
+          )}
+          <div class="article-card__body">
+            {article.categories && (
+              <div class="article-card__cat">
+                <a href={`/category/${article.categories.slug}`}>{article.categories.name}</a>
+              </div>
+            )}
+            <h2 class="article-card__title">
+              <a href={`/${article.slug}`}>{article.headline}</a>
+            </h2>
+            {article.excerpt && <p class="article-card__excerpt">{article.excerpt}</p>}
+            <div class="article-card__meta">
+              {article.authors?.avatar_url && <img src={article.authors.avatar_url} alt="" />}
+              <span>{article.authors?.name}</span>
+              <span>·</span>
+              <time>{formatDate(article.published_at)}</time>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  )}
+</Base>

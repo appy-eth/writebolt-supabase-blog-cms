@@ -1,0 +1,141 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import { requireAuth } from '../../../lib/auth';
+import { adminGetArticle, adminGetCategories, adminGetAuthors } from '../../../lib/data';
+import { supabaseAdmin } from '../../../lib/supabase';
+
+const authRedirect = requireAuth(Astro.request);
+if (authRedirect) return authRedirect;
+
+const { id } = Astro.params;
+let article = await adminGetArticle(id!);
+if (!article) return Astro.redirect('/admin');
+
+const categories = await adminGetCategories();
+const authors = await adminGetAuthors();
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = form.get('action')?.toString() || '';
+
+  if (action === 'delete') {
+    await supabaseAdmin.from('articles').delete().eq('id', id);
+    return Astro.redirect('/admin');
+  }
+
+  const headline = form.get('headline')?.toString() || '';
+  const slug = form.get('slug')?.toString() || '';
+  const content_markdown = form.get('content_markdown')?.toString() || '';
+  const excerpt = form.get('excerpt')?.toString() || '';
+  const featured_image = form.get('featured_image')?.toString() || '';
+  const category_id = form.get('category_id')?.toString() || null;
+  const author_id = form.get('author_id')?.toString() || null;
+
+  const status = action === 'publish' ? 'published' : action === 'schedule' ? 'scheduled' : action === 'archive' ? 'archived' : 'draft';
+  const published_at = (status === 'published' && !article.published_at)
+    ? new Date().toISOString()
+    : article.published_at;
+  const scheduled_for = status === 'scheduled' ? form.get('scheduled_for')?.toString() || null : null;
+
+  const { error: dbError } = await supabaseAdmin.from('articles').update({
+    headline,
+    slug,
+    content_markdown,
+    excerpt,
+    featured_image,
+    category_id: category_id || null,
+    author_id: author_id || null,
+    status,
+    published_at,
+    scheduled_for,
+    updated_at: new Date().toISOString(),
+  }).eq('id', id);
+
+  if (dbError) {
+    error = dbError.message;
+  } else {
+    return Astro.redirect('/admin');
+  }
+}
+---
+
+<Admin title={`Edit: ${article.headline}`} active="articles">
+  <div class="admin-header">
+    <h1>Edit Article</h1>
+    <span class={`status-badge status-badge--${article.status}`}>{article.status}</span>
+  </div>
+
+  {error && <div class="login-error" style="margin-bottom: 1rem;">{error}</div>}
+
+  <form method="POST">
+    <div class="form-group">
+      <label for="headline">Headline</label>
+      <input type="text" id="headline" name="headline" class="form-input" value={article.headline} required />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="slug">Slug</label>
+        <input type="text" id="slug" name="slug" class="form-input" value={article.slug} />
+      </div>
+      <div class="form-group">
+        <label for="featured_image">Featured Image URL</label>
+        <input type="url" id="featured_image" name="featured_image" class="form-input" value={article.featured_image || ''} />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="category_id">Category</label>
+        <select id="category_id" name="category_id" class="form-input">
+          <option value="">None</option>
+          {categories.map((c) => (
+            <option value={c.id} selected={c.id === article.category_id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="author_id">Author</label>
+        <select id="author_id" name="author_id" class="form-input">
+          {authors.map((a) => (
+            <option value={a.id} selected={a.id === article.author_id}>{a.name}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="excerpt">Excerpt</label>
+      <input type="text" id="excerpt" name="excerpt" class="form-input" value={article.excerpt || ''} />
+    </div>
+
+    <div class="form-group">
+      <label for="content_markdown">Content (Markdown)</label>
+      <textarea id="content_markdown" name="content_markdown" class="form-input">{article.content_markdown}</textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="scheduled_for">Schedule For</label>
+      <input type="datetime-local" id="scheduled_for" name="scheduled_for" class="form-input"
+        value={article.scheduled_for ? new Date(article.scheduled_for).toISOString().slice(0, 16) : ''} />
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap;">
+      <button type="submit" name="action" value="draft" class="btn">Save as Draft</button>
+      <button type="submit" name="action" value="publish" class="btn btn--primary">
+        {article.status === 'published' ? 'Update & Publish' : 'Publish Now'}
+      </button>
+      <button type="submit" name="action" value="schedule" class="btn btn--accent">Schedule</button>
+      {article.status !== 'archived' && (
+        <button type="submit" name="action" value="archive" class="btn" style="margin-left: auto;">Archive</button>
+      )}
+      <button type="submit" name="action" value="delete" class="btn"
+        style="color: var(--accent);"
+        onclick="return confirm('Delete this article permanently?')">
+        Delete
+      </button>
+    </div>
+  </form>
+</Admin>
