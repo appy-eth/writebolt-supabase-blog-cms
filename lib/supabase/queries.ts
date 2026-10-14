@@ -295,3 +295,20 @@ export async function getAllPublishedSlugs(): Promise<string[]> {
 
   return (data ?? []).map((row) => row.slug);
 }
+
+/** Articles from the last 48 hours, for the Google News sitemap (max 1,000). */
+export async function getRecentNewsArticles(): Promise<
+  Pick<Article, "headline" | "slug" | "published_at">[]
+> {
+  const supabase = createClient();
+  const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  const { data } = await supabase
+    .from("articles")
+    .select("headline, slug, published_at")
+    .eq("status", "published")
+    .gte("published_at", since)
+    .order("published_at", { ascending: false })
+    .limit(1000);
+
+  return (data ?? []) as Pick<Article, "headline" | "slug" | "published_at">[];
+}

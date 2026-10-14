@@ -1,0 +1,42 @@
+---
+import type { Article } from '../lib/types';
+import { formatDateShort, publicPath } from '../lib/utils';
+
+interface Props {
+  article: Article;
+}
+
+const { article } = Astro.props;
+const cat = article.categories;
+const author = article.authors;
+---
+
+<a href={publicPath(`/${article.slug}`)} class="article-card">
+  <div class="article-card__media">
+    {article.featured_image ? (
+      <img
+        class="article-card__img"
+        src={article.featured_image}
+        alt={article.featured_image_alt || article.headline}
+        loading="lazy"
+      />
+    ) : (
+      <div class="article-card__placeholder" aria-hidden="true"></div>
+    )}
+    {cat && <span class="article-card__badge">{cat.name}</span>}
+  </div>
+  <div class="article-card__body">
+    <h2 class="article-card__title">{article.headline}</h2>
+    {article.excerpt && <p class="article-card__excerpt">{article.excerpt}</p>}
+    <div class="article-card__meta">
+      {author?.avatar_url && <img src={author.avatar_url} alt="" />}
+      {author?.name && <span>{author.name}</span>}
+      {article.published_at && (
+        <>
+          {author?.name && <span>·</span>}
+          <time datetime={article.published_at}>{formatDateShort(article.published_at)}</time>
+        </>
+      )}
+    </div>
+  </div>
+</a>

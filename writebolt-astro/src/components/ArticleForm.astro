@@ -1,0 +1,327 @@
+---
+import type { Author, Category, Article } from '../lib/types';
+import { publicPath } from '../lib/utils';
+import WriteboltGenerate from './WriteboltGenerate.astro';
+
+interface Props {
+  article?: Article | null;
+  categories: Category[];
+  authors: Author[];
+  hasApiKey: boolean;
+}
+
+const { article, categories, authors, hasApiKey } = Astro.props;
+const tagsValue = (article?.tags || []).join(', ');
+const scheduledValue = article?.scheduled_for
+  ? new Date(article.scheduled_for).toISOString().slice(0, 16)
+  : '';
+---
+
+<div class="form-group">
+  <label for="headline">Headline</label>
+  <input type="text" id="headline" name="headline" class="form-input" required
+    value={article?.headline || ''} data-headline />
+</div>
+
+<div class="ai-toolbar" data-ai-toolbar>
+  {hasApiKey ? (
+    <div class="ai-toolbar__row">
+      <span class="ai-toolbar__label">AI</span>
+      <button type="button" class="btn btn--sm" data-ai="generate-draft">✨ Draft</button>
+      <button type="button" class="btn btn--sm" data-ai="rewrite">Rewrite</button>
+      <button type="button" class="btn btn--sm" data-ai="expand">Expand</button>
+      <button type="button" class="btn btn--sm" data-ai="suggest-headline">Headlines</button>
+      <button type="button" class="btn btn--sm" data-ai="generate-excerpt">Excerpt</button>
+      <button type="button" class="btn btn--sm" data-ai-image>🖼 Image</button>
+    </div>
+  ) : (
+    <p class="ai-toolbar__hint">
+      Add your OpenAI API key in <a href="/admin/settings/ai">Settings → AI</a> to enable AI assist.
+    </p>
+  )}
+  <div class="ai-headlines" data-ai-headlines hidden></div>
+</div>
+
+<WriteboltGenerate headline={article?.headline || ''} />
+
+<div class="editor-toolbar" data-md-toolbar>
+  <button type="button" data-md="**|" title="Bold">B</button>
+  <button type="button" data-md="*|" title="Italic">I</button>
+  <button type="button" data-md="\n## |" title="Heading 2">H2</button>
+  <button type="button" data-md="\n### |" title="Heading 3">H3</button>
+  <button type="button" data-md="[|](url)" title="Link">Link</button>
+  <button type="button" data-md="![alt](|)" title="Image">Img</button>
+  <button type="button" data-md="\n- |" title="Bullet list">UL</button>
+  <button type="button" data-md="\n1. |" title="Numbered list">OL</button>
+  <button type="button" data-md="\n> |" title="Quote">Quote</button>
+  <button type="button" data-md="`|`" title="Code">Code</button>
+  <span class="editor-toolbar__sep" aria-hidden="true"></span>
+  <button type="button" data-md-block="cta" title="Insert in-article CTA">CTA</button>
+  <button type="button" data-md-block="lead" title="Insert lead magnet">Lead</button>
+  <button type="button" data-md-block="nl" title="Insert newsletter signup">NL</button>
+</div>
+
+<div class="form-group">
+  <label for="content_markdown">Content (Markdown)</label>
+  <textarea id="content_markdown" name="content_markdown" class="form-input" data-content>{article?.content_markdown || ''}</textarea>
+  <p class="form-hint">Markdown plus in-article blocks: <code>&lt;CTAInline /&gt;</code>, <code>&lt;LeadMagnet /&gt;</code>, <code>&lt;NewsletterSignup /&gt;</code>, <code>&lt;CTASidebar /&gt;</code>.</p>
+</div>
+
+<div class="form-row">
+  <div class="form-group">
+    <label for="slug">Slug</label>
+    <input type="text" id="slug" name="slug" class="form-input" value={article?.slug || ''} data-slug />
+    <p class="form-hint">Public URL: {publicPath(`/${article?.slug || 'your-slug'}`)}</p>
+  </div>
+  <div class="form-group">
+    <label for="excerpt">Excerpt</label>
+    <input type="text" id="excerpt" name="excerpt" class="form-input" value={article?.excerpt || ''} data-excerpt />
+  </div>
+</div>
+
+<div class="form-row">
+  <div class="form-group">
+    <label for="featured_image">Featured Image</label>
+    <div class="upload-row">
+      <input type="url" id="featured_image" name="featured_image" class="form-input" value={article?.featured_image || ''} data-featured-url />
+      <button type="button" class="btn" data-upload>Upload</button>
+      <input type="file" accept="image/*" hidden data-upload-file />
+    </div>
+    <img data-featured-preview src={article?.featured_image || ''} alt="" class="img-preview" hidden={!article?.featured_image} />
+  </div>
+  <div class="form-group">
+    <label for="featured_image_alt">Image alt text</label>
+    <input type="text" id="featured_image_alt" name="featured_image_alt" class="form-input" value={article?.featured_image_alt || ''} />
+  </div>
+</div>
+
+<div class="form-row">
+  <div class="form-group">
+    <label for="category_id">Category</label>
+    <select id="category_id" name="category_id" class="form-input">
+      <option value="">None</option>
+      {categories.map((c) => (
+        <option value={c.id} selected={c.id === article?.category_id}>{c.name}</option>
+      ))}
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="author_id">Author</label>
+    <select id="author_id" name="author_id" class="form-input">
+      {authors.map((a) => (
+        <option value={a.id} selected={article ? a.id === article.author_id : a.is_default}>{a.name}</option>
+      ))}
+    </select>
+  </div>
+</div>
+
+<div class="form-group">
+  <label for="tags">Tags (comma-separated)</label>
+  <input type="text" id="tags" name="tags" class="form-input" value={tagsValue} placeholder="seo, publishing, growth" />
+</div>
+
+<div class="form-row">
+  <div class="form-group">
+    <label for="seo_title">SEO title</label>
+    <input type="text" id="seo_title" name="seo_title" class="form-input" value={article?.seo_title || ''} />
+  </div>
+  <div class="form-group">
+    <label for="seo_description">SEO description</label>
+    <input type="text" id="seo_description" name="seo_description" class="form-input" value={article?.seo_description || ''} />
+  </div>
+</div>
+
+<div class="form-group">
+  <label for="scheduled_for">Schedule For</label>
+  <input type="datetime-local" id="scheduled_for" name="scheduled_for" class="form-input" value={scheduledValue} />
+</div>
+
+<div class="ai-image-modal" data-ai-modal hidden>
+  <div class="ai-image-modal__card">
+    <h3>Generate image</h3>
+    <label>Description</label>
+    <input type="text" class="form-input" data-ai-desc />
+    <label>Style</label>
+    <select class="form-input" data-ai-style>
+      <option>photorealistic</option>
+      <option>illustrated</option>
+      <option>minimal</option>
+      <option>editorial</option>
+      <option>watercolor</option>
+      <option>3d render</option>
+    </select>
+    <p data-ai-img-error class="login-error" hidden></p>
+    <img data-ai-img-preview alt="" class="img-preview" hidden />
+    <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+      <button type="button" class="btn btn--primary" data-ai-img-go>Generate</button>
+      <button type="button" class="btn" data-ai-img-use hidden>Use as featured</button>
+      <button type="button" class="btn" data-ai-img-insert hidden>Insert into article</button>
+      <button type="button" class="btn" data-ai-img-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const form = document.querySelector('[data-article-form]') as HTMLFormElement | null;
+  const content = document.querySelector('[data-content]') as HTMLTextAreaElement | null;
+  const headline = document.querySelector('[data-headline]') as HTMLInputElement | null;
+  const slug = document.querySelector('[data-slug]') as HTMLInputElement | null;
+  const excerpt = document.querySelector('[data-excerpt]') as HTMLInputElement | null;
+  const featuredUrl = document.querySelector('[data-featured-url]') as HTMLInputElement | null;
+  const featuredPreview = document.querySelector('[data-featured-preview]') as HTMLImageElement | null;
+
+  headline?.addEventListener('input', () => {
+    if (!slug || slug.value) return;
+    slug.value = headline.value.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-').replace(/^-+|-+$/g, '');
+  });
+
+  document.querySelectorAll('[data-md]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!content) return;
+      const tpl = (btn as HTMLElement).dataset.md || '';
+      const wrap = tpl.replace(/\\n/g, '\n');
+      const start = content.selectionStart;
+      const end = content.selectionEnd;
+      const selected = content.value.slice(start, end);
+      const pipe = wrap.indexOf('|');
+      const prefix = pipe >= 0 ? wrap.slice(0, pipe) : wrap;
+      const suffix = pipe >= 0 ? wrap.slice(pipe + 1) : '';
+      content.value = content.value.slice(0, start) + prefix + selected + suffix + content.value.slice(end);
+      content.focus();
+      const pos = start + prefix.length + selected.length;
+      content.setSelectionRange(pos, pos);
+    });
+  });
+
+  const blocks: Record<string, string> = {
+    cta: '<CTAInline title="Your headline" description="A short pitch." buttonText="Get started" buttonUrl="https://example.com" variant="highlight" />',
+    lead: '<LeadMagnet title="Free download" description="Enter your email to get the guide." buttonText="Download Free" imageUrl="" formAction="" />',
+    nl: '<NewsletterSignup title="Stay updated" description="Get new articles in your inbox." />',
+  };
+  document.querySelectorAll('[data-md-block]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!content) return;
+      const key = (btn as HTMLElement).dataset.mdBlock || '';
+      const snippet = blocks[key];
+      if (!snippet) return;
+      const start = content.selectionStart;
+      const insert = `\n\n${snippet}\n\n`;
+      content.value = content.value.slice(0, start) + insert + content.value.slice(content.selectionEnd);
+      content.focus();
+      const pos = start + insert.length;
+      content.setSelectionRange(pos, pos);
+    });
+  });
+
+  const uploadBtn = document.querySelector('[data-upload]');
+  const uploadFile = document.querySelector('[data-upload-file]') as HTMLInputElement | null;
+  uploadBtn?.addEventListener('click', () => uploadFile?.click());
+  uploadFile?.addEventListener('change', async () => {
+    const file = uploadFile.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    if (res.ok) {
+      const { url } = await res.json();
+      if (featuredUrl) featuredUrl.value = url;
+      if (featuredPreview) { featuredPreview.src = url; featuredPreview.hidden = false; }
+    } else {
+      alert('Upload failed');
+    }
+  });
+
+  async function callAI(action: string, body: Record<string, unknown>) {
+    const res = await fetch(`/api/ai/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'AI request failed');
+      return null;
+    }
+    return data;
+  }
+
+  document.querySelectorAll('[data-ai]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const action = (btn as HTMLElement).dataset.ai;
+      const selected = content ? content.value.slice(content.selectionStart, content.selectionEnd) : '';
+      if (action === 'generate-draft') {
+        const topic = headline?.value || prompt('Enter a topic for the draft:');
+        if (!topic) return;
+        if (content?.value && !confirm('This will replace the current content. Continue?')) return;
+        const result = await callAI('generate-draft', { topic });
+        if (result?.content && content) content.value = result.content;
+      }
+      if (action === 'rewrite') {
+        if (!selected) { alert('Select some text in the editor first.'); return; }
+        const result = await callAI('rewrite', { text: selected });
+        if (result?.content && content) content.value = content.value.replace(selected, result.content);
+      }
+      if (action === 'expand') {
+        if (!selected) { alert('Select some text in the editor first.'); return; }
+        const result = await callAI('expand', { text: selected });
+        if (result?.content && content) content.value = content.value.replace(selected, result.content);
+      }
+      if (action === 'suggest-headline') {
+        const topic = headline?.value || 'this article';
+        const result = await callAI('suggest-headline', { topic });
+        const box = document.querySelector('[data-ai-headlines]') as HTMLElement | null;
+        if (result?.headlines && box) {
+          box.hidden = false;
+          box.innerHTML = result.headlines.map((h: string) => `<button type="button" class="btn btn--sm" data-pick-headline>${h}</button>`).join(' ');
+          box.querySelectorAll('[data-pick-headline]').forEach((b) => {
+            b.addEventListener('click', () => { if (headline) headline.value = b.textContent || ''; });
+          });
+        }
+      }
+      if (action === 'generate-excerpt') {
+        if (!content?.value) { alert('Write some content first.'); return; }
+        const result = await callAI('generate-excerpt', { content: content.value });
+        if (result?.excerpt && excerpt) excerpt.value = result.excerpt;
+      }
+    });
+  });
+
+  const modal = document.querySelector('[data-ai-modal]') as HTMLElement | null;
+  document.querySelector('[data-ai-image]')?.addEventListener('click', () => { if (modal) modal.hidden = false; });
+  document.querySelector('[data-ai-img-close]')?.addEventListener('click', () => { if (modal) modal.hidden = true; });
+  document.querySelector('[data-ai-img-go]')?.addEventListener('click', async () => {
+    const desc = (document.querySelector('[data-ai-desc]') as HTMLInputElement)?.value;
+    const style = (document.querySelector('[data-ai-style]') as HTMLSelectElement)?.value;
+    const err = document.querySelector('[data-ai-img-error]') as HTMLElement | null;
+    const preview = document.querySelector('[data-ai-img-preview]') as HTMLImageElement | null;
+    const useBtn = document.querySelector('[data-ai-img-use]') as HTMLButtonElement | null;
+    if (!desc) return;
+    if (err) err.hidden = true;
+    const result = await callAI('generate-image', { description: desc, style, size: 'featured' });
+    if (!result) {
+      if (err) { err.hidden = false; err.textContent = 'Generation failed'; }
+      return;
+    }
+    if (preview) { preview.src = result.url; preview.hidden = false; preview.dataset.url = result.url; preview.dataset.alt = result.altText; }
+    if (useBtn) useBtn.hidden = false;
+    const insertBtn = document.querySelector('[data-ai-img-insert]') as HTMLButtonElement | null;
+    if (insertBtn) insertBtn.hidden = false;
+  });
+  document.querySelector('[data-ai-img-use]')?.addEventListener('click', () => {
+    const preview = document.querySelector('[data-ai-img-preview]') as HTMLImageElement | null;
+    if (featuredUrl && preview?.dataset.url) featuredUrl.value = preview.dataset.url;
+    const alt = document.getElementById('featured_image_alt') as HTMLInputElement | null;
+    if (alt && preview?.dataset.alt) alt.value = preview.dataset.alt;
+    if (featuredPreview && preview?.dataset.url) { featuredPreview.src = preview.dataset.url; featuredPreview.hidden = false; }
+    if (modal) modal.hidden = true;
+  });
+  document.querySelector('[data-ai-img-insert]')?.addEventListener('click', () => {
+    const preview = document.querySelector('[data-ai-img-preview]') as HTMLImageElement | null;
+    if (content && preview?.dataset.url) {
+      const alt = preview.dataset.alt || 'image';
+      content.value += `\n\n![${alt}](${preview.dataset.url})\n`;
+      content.focus();
+    }
+    if (modal) modal.hidden = true;
+  });
+</script>

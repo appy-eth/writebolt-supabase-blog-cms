@@ -46,3 +46,13 @@ export function requireAuth(request: Request): Response | null {
   }
   return null;
 }
+
+export function requireApiAuth(request: Request): Response | null {
+  if (!isAuthenticated(request)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  return null;
+}

@@ -1,8 +1,24 @@
 ---
 import Base from '../layouts/Base.astro';
-import { getArticleBySlug } from '../lib/data';
-import { formatDate } from '../lib/utils';
-import { marked } from 'marked';
+import TableOfContents from '../components/TableOfContents.astro';
+import ReadingProgress from '../components/ReadingProgress.astro';
+import RelatedArticles from '../components/RelatedArticles.astro';
+import AuthorCard from '../components/AuthorCard.astro';
+import NewsletterSignup from '../components/NewsletterSignup.astro';
+import EmailCapture from '../components/EmailCapture.astro';
+import CTASidebar from '../components/CTASidebar.astro';
+import WriteboltAd from '../components/WriteboltAd.astro';
+import {
+  getArticleBySlug,
+  getRelatedArticles,
+  getSiteSettings,
+} from '../lib/data';
+import { formatDate, publicPath, siteUrl } from '../lib/utils';
+import { formatReadingTime } from '../lib/reading-time';
+import { renderMarkdown } from '../lib/markdown';
+import { articleJsonLd } from '../lib/seo';
+import MarkdownHydrate from '../components/MarkdownHydrate.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
 
 const { slug } = Astro.params;
 const article = await getArticleBySlug(slug!);
@@ -11,30 +27,160 @@ if (!article) {
   return Astro.redirect('/404');
 }
 
-const htmlContent = await marked.parse(article.content_markdown || '');
+const settings = await getSiteSettings();
+const related = settings.show_related_articles ? await getRelatedArticles(article, 3) : [];
+const htmlContent = await renderMarkdown(article.content_markdown || '');
+const cat = article.categories;
+const author = article.authors;
+const showNewsletter =
+  settings.newsletter_enabled &&
+  (settings.newsletter_embed_url?.trim() || settings.newsletter_list_id?.trim());
+const markdownHasCta = /<(CTAInline|LeadMagnet|NewsletterSignup)\b/.test(
+  article.content_markdown || ''
+);
+const showInlineCta =
+  !markdownHasCta &&
+  settings.inline_cta_enabled &&
+  settings.inline_cta_heading &&
+  settings.inline_cta_button_text &&
+  (settings.inline_cta_list_id || settings.newsletter_list_id);
+const showArticleNewsletter = showNewsletter && !showInlineCta && !markdownHasCta;
+const pageTitle = article.seo_title || article.headline;
+const pageDesc = article.seo_description || article.excerpt || undefined;
+const origin = siteUrl();
+const ogParams = new URLSearchParams({
+  title: pageTitle,
+  blog: settings.site_name,
+});
+if (author?.name) ogParams.set('author', author.name);
+if (cat?.name) ogParams.set('category', cat.name);
+const ogFallback = `${origin}/api/og?${ogParams.toString()}`;
 ---
 
-<Base title={article.headline} description={article.excerpt}>
-  <article>
-    <div class="article-header">
-      {article.categories && (
-        <div class="article-header__cat">
-          <a href={`/category/${article.categories.slug}`}>{article.categories.name}</a>
-        </div>
-      )}
-      <h1>{article.headline}</h1>
-      <div class="article-header__meta">
-        {article.authors?.name && <span>By {article.authors.name}</span>}
-        {article.published_at && <span> · <time>{formatDate(article.published_at)}</time></span>}
-      </div>
-    </div>
+<Base
+  title={pageTitle}
+  description={pageDesc}
+  ogImage={article.featured_image || settings.default_og_image || ogFallback}
+  ogType="article"
+  articlePublished={article.published_at}
+  jsonLd={articleJsonLd(article, settings)}
+>
+  <ReadingProgress />
 
-    {article.featured_image && (
-      <div class="article-hero">
-        <img src={article.featured_image} alt={article.headline} />
+  <Breadcrumbs
+    items={[
+      { label: 'Blog', href: publicPath('/') },
+      ...(cat ? [{ label: cat.name, href: publicPath(`/category/${cat.slug}`) }] : []),
+      { label: article.headline },
+    ]}
+  />
+
+  <div class="article-header">
+    {cat && (
+      <div class="article-header__cat">
+        <a href={publicPath(`/category/${cat.slug}`)}>{cat.name}</a>
       </div>
     )}
+    <h1>{article.headline}</h1>
+    <div class="article-header__meta">
+      {author && (
+        <a href={publicPath(`/authors/${author.slug}`)} class="article-header__author">
+          {author.avatar_url && <img src={author.avatar_url} alt="" />}
+          <span>{author.name}</span>
+        </a>
+      )}
+      {article.published_at && (
+        <span>· <time datetime={article.published_at}>{formatDate(article.published_at)}</time></span>
+      )}
+      {settings.show_reading_time && article.reading_time_minutes && (
+        <span>· {formatReadingTime(article.reading_time_minutes)}</span>
+      )}
+    </div>
+  </div>
 
-    <div class="prose" set:html={htmlContent} />
-  </article>
+  {article.featured_image && (
+    <div class="article-hero">
+      <img src={article.featured_image} alt={article.featured_image_alt || article.headline} />
+    </div>
+  )}
+
+  <div class="article-layout">
+    <article class="article-main">
+      <div class="prose" set:html={htmlContent} />
+
+      {settings.writebolt_ads_site_id && (
+        <WriteboltAd placement="in-article" siteId={settings.writebolt_ads_site_id} />
+      )}
+
+      {showInlineCta && <EmailCapture settings={settings} />}
+
+      {(cat || (article.tags && article.tags.length > 0)) && (
+        <footer class="article-footer">
+          {cat && (
+            <p>Filed under: <a href={publicPath(`/category/${cat.slug}`)}>{cat.name}</a></p>
+          )}
+          {article.tags?.length > 0 && (
+            <div class="tag-list" role="list" aria-label="Article tags">
+              <span>Tags:</span>
+              {article.tags.map((tag) => (
+                <a href={publicPath(`/tag/${encodeURIComponent(tag)}`)} role="listitem">#{tag}</a>
+              ))}
+            </div>
+          )}
+        </footer>
+      )}
+
+      {showArticleNewsletter && (
+        <div class="article-nl">
+          <NewsletterSignup
+            embedUrl={settings.newsletter_embed_url}
+            listId={settings.newsletter_list_id}
+            successMessage={settings.newsletter_success_message}
+            successRedirectUrl={settings.newsletter_success_redirect_url}
+            variant="card"
+            idPrefix="article-nl"
+          />
+        </div>
+      )}
+
+      {settings.show_author_card && author && (
+        <div class="article-author">
+          <AuthorCard author={author} />
+        </div>
+      )}
+
+      <RelatedArticles articles={related} />
+    </article>
+
+    <aside class="article-aside">
+      <div class="sidebar__sticky">
+        {settings.show_table_of_contents && <TableOfContents />}
+        {settings.sidebar_cta_enabled && settings.sidebar_cta_title && (
+          <CTASidebar
+            title={settings.sidebar_cta_title}
+            description={settings.sidebar_cta_description ?? undefined}
+            buttonText={settings.sidebar_cta_button_text ?? undefined}
+            buttonUrl={settings.sidebar_cta_button_url ?? undefined}
+            imageUrl={settings.sidebar_cta_image_url ?? undefined}
+          />
+        )}
+        {showNewsletter && (
+          <NewsletterSignup
+            embedUrl={settings.newsletter_embed_url}
+            listId={settings.newsletter_list_id}
+            title="Stay updated"
+            description="Get new articles in your inbox."
+            successMessage={settings.newsletter_success_message}
+            successRedirectUrl={settings.newsletter_success_redirect_url}
+            variant="card"
+            idPrefix="article-aside-nl"
+          />
+        )}
+        {settings.writebolt_ads_site_id && (
+          <WriteboltAd placement="sidebar" siteId={settings.writebolt_ads_site_id} />
+        )}
+      </div>
+    </aside>
+  </div>
+  <MarkdownHydrate />
 </Base>

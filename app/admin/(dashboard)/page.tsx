@@ -169,7 +169,18 @@ export default function AdminDashboard() {
                         {article.headline}
                       </Link>
                       <p className="mt-0.5 text-xs text-gray-500">
-                        /{article.slug}
+                        {article.status === "published" ? (
+                          <a
+                            href={`/blog/${article.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-[#2563EB]"
+                          >
+                            /blog/{article.slug}
+                          </a>
+                        ) : (
+                          <>/blog/{article.slug}</>
+                        )}
                       </p>
                     </div>
                   </td>

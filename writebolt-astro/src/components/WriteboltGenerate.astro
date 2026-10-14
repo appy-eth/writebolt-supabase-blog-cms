@@ -1,0 +1,32 @@
+---
+interface Props {
+  headline?: string;
+}
+
+const { headline = '' } = Astro.props;
+---
+
+<div class="wb-generate" data-wb-generate data-headline={headline}>
+  <span class="wb-generate__icon" aria-hidden="true">⚡</span>
+  <div>
+    <h3>Generate with Writebolt</h3>
+    <p>Get a researched, SEO-optimized article with internal links and external citations.</p>
+    <button type="button" class="btn btn--primary" data-wb-open>Try Writebolt Free</button>
+    <p class="wb-generate__hint">Full research + SEO + internal links + citations</p>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-wb-generate]').forEach((el) => {
+    if (el.dataset.bound) return;
+    el.dataset.bound = 'true';
+    el.querySelector('[data-wb-open]')?.addEventListener('click', () => {
+      const params = new URLSearchParams();
+      const topic = el.dataset.headline || (document.querySelector<HTMLInputElement>('[data-headline]')?.value ?? '');
+      if (topic) params.set('topic', topic);
+      params.set('url', window.location.origin);
+      params.set('ref', 'blog-template');
+      window.open(`https://writebolt.com/?${params.toString()}`, '_blank', 'noopener,noreferrer');
+    });
+  });
+</script>

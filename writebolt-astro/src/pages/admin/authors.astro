@@ -1,0 +1,130 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { requireAuth } from '../../lib/auth';
+import { adminGetAuthors } from '../../lib/data';
+import { supabaseAdmin } from '../../lib/supabase';
+import { absoluteUrl, slugify } from '../../lib/utils';
+
+const authRedirect = requireAuth(Astro.request);
+if (authRedirect) return authRedirect;
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = form.get('action')?.toString() || '';
+
+  const fields = {
+    name: form.get('name')?.toString() || '',
+    slug: form.get('slug')?.toString() || slugify(form.get('name')?.toString() || ''),
+    bio: form.get('bio')?.toString() || '',
+    avatar_url: form.get('avatar_url')?.toString() || '',
+    website_url: form.get('website_url')?.toString() || null,
+    twitter_handle: form.get('twitter_handle')?.toString() || null,
+    linkedin_url: form.get('linkedin_url')?.toString() || null,
+    github_url: form.get('github_url')?.toString() || null,
+    role: form.get('role')?.toString() || 'contributor',
+    is_active: form.get('is_active') === 'on',
+    is_default: form.get('is_default') === 'on',
+  };
+
+  if (action === 'add') {
+    if (fields.is_default) {
+      await supabaseAdmin.from('authors').update({ is_default: false }).neq('id', '00000000-0000-0000-0000-000000000000');
+    }
+    const { error: dbError } = await supabaseAdmin.from('authors').insert(fields);
+    if (dbError) error = dbError.message;
+  }
+
+  if (action === 'update') {
+    const id = form.get('id')?.toString();
+    if (fields.is_default) {
+      await supabaseAdmin.from('authors').update({ is_default: false }).neq('id', id);
+    }
+    await supabaseAdmin.from('authors').update(fields).eq('id', id);
+  }
+
+  if (action === 'delete') {
+    const id = form.get('id')?.toString();
+    await supabaseAdmin.from('authors').delete().eq('id', id);
+  }
+}
+
+const authors = await adminGetAuthors();
+---
+
+<Admin title="Authors" active="authors">
+  <div class="admin-header">
+    <h1>Authors</h1>
+  </div>
+  {error && <div class="login-error" style="margin-bottom: 1rem;">{error}</div>}
+
+  <form method="POST" class="admin-card" style="margin-bottom: 2rem;">
+    <input type="hidden" name="action" value="add" />
+    <h2 style="font-size: 1rem; margin-bottom: 1rem;">Add author</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Name</label><input name="name" class="form-input" required /></div>
+      <div class="form-group"><label>Slug</label><input name="slug" class="form-input" /></div>
+    </div>
+    <div class="form-group"><label>Bio</label><textarea name="bio" class="form-input" style="min-height:80px;"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Avatar URL</label><input name="avatar_url" class="form-input" /></div>
+      <div class="form-group"><label>Role</label>
+        <select name="role" class="form-input">
+          <option value="contributor">Contributor</option>
+          <option value="editor">Editor</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Website</label><input name="website_url" class="form-input" /></div>
+      <div class="form-group"><label>Twitter</label><input name="twitter_handle" class="form-input" placeholder="@handle" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>LinkedIn</label><input name="linkedin_url" class="form-input" /></div>
+      <div class="form-group"><label>GitHub</label><input name="github_url" class="form-input" /></div>
+    </div>
+    <div style="display:flex;gap:1.5rem;align-items:center;">
+      <label class="check-label"><input type="checkbox" name="is_active" checked /> Active</label>
+      <label class="check-label"><input type="checkbox" name="is_default" /> Default author</label>
+      <button type="submit" class="btn btn--primary">Add</button>
+    </div>
+  </form>
+
+  {authors.map((a) => (
+    <form method="POST" class="admin-card" style="margin-bottom: 1rem;">
+      <input type="hidden" name="id" value={a.id} />
+      <div class="form-row">
+        <div class="form-group"><label>Name</label><input name="name" class="form-input" value={a.name} required /></div>
+        <div class="form-group"><label>Slug</label><input name="slug" class="form-input" value={a.slug} /></div>
+      </div>
+      <div class="form-group"><label>Bio</label><textarea name="bio" class="form-input" style="min-height:80px;">{a.bio || ''}</textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Avatar URL</label><input name="avatar_url" class="form-input" value={a.avatar_url || ''} /></div>
+        <div class="form-group"><label>Role</label>
+          <select name="role" class="form-input">
+            <option value="contributor" selected={a.role === 'contributor'}>Contributor</option>
+            <option value="editor" selected={a.role === 'editor'}>Editor</option>
+            <option value="admin" selected={a.role === 'admin'}>Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Website</label><input name="website_url" class="form-input" value={a.website_url || ''} /></div>
+        <div class="form-group"><label>Twitter</label><input name="twitter_handle" class="form-input" value={a.twitter_handle || ''} /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>LinkedIn</label><input name="linkedin_url" class="form-input" value={a.linkedin_url || ''} /></div>
+        <div class="form-group"><label>GitHub</label><input name="github_url" class="form-input" value={a.github_url || ''} /></div>
+      </div>
+      <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+        <label class="check-label"><input type="checkbox" name="is_active" checked={a.is_active} /> Active</label>
+        <label class="check-label"><input type="checkbox" name="is_default" checked={a.is_default} /> Default</label>
+        <button type="submit" name="action" value="update" class="btn btn--primary">Save</button>
+        <button type="submit" name="action" value="delete" class="btn" style="color: var(--accent);" onclick="return confirm('Delete this author?')">Delete</button>
+        <a href={absoluteUrl(`/authors/${a.slug}`)} target="_blank" class="btn btn--sm">View</a>
+      </div>
+    </form>
+  ))}
+</Admin>

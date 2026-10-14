@@ -1,0 +1,60 @@
+---
+import Base from '../../layouts/Base.astro';
+import ArticleCard from '../../components/ArticleCard.astro';
+import { getAuthorBySlug, getAuthorArticles } from '../../lib/data';
+import { authorJsonLd } from '../../lib/seo';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import { publicPath } from '../../lib/utils';
+
+const { slug } = Astro.params;
+const author = await getAuthorBySlug(slug!);
+if (!author) return Astro.redirect('/404');
+
+const articles = await getAuthorArticles(author.id);
+---
+
+<Base
+  title={author.name}
+  description={author.bio || `Articles by ${author.name}`}
+  ogImage={author.avatar_url}
+  jsonLd={authorJsonLd(author)}
+>
+  <Breadcrumbs items={[{ label: 'Blog', href: publicPath('/') }, { label: 'Authors', href: publicPath('/authors') }, { label: author.name }]} />
+  <div class="author-profile">
+    {author.avatar_url ? (
+      <img src={author.avatar_url} alt="" class="author-profile__avatar" />
+    ) : (
+      <div class="author-profile__avatar author-profile__avatar--fallback" aria-hidden="true">
+        {author.name.charAt(0)}
+      </div>
+    )}
+    <div>
+      <h1>{author.name}</h1>
+      <p class="author-profile__role">{author.role}</p>
+      {author.bio && <p class="author-profile__bio">{author.bio}</p>}
+      <div class="author-card__links">
+        {author.twitter_handle && (
+          <a href={`https://twitter.com/${author.twitter_handle.replace('@', '')}`} target="_blank" rel="noopener noreferrer">Twitter</a>
+        )}
+        {author.linkedin_url && (
+          <a href={author.linkedin_url} target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        )}
+        {author.github_url && (
+          <a href={author.github_url} target="_blank" rel="noopener noreferrer">GitHub</a>
+        )}
+        {author.website_url && (
+          <a href={author.website_url} target="_blank" rel="noopener noreferrer">Website</a>
+        )}
+      </div>
+    </div>
+  </div>
+
+  <h2 class="author-articles-heading">Articles by {author.name}</h2>
+  {articles.length === 0 ? (
+    <p class="empty-state">No published articles yet.</p>
+  ) : (
+    <div class="article-grid">
+      {articles.map((article) => <ArticleCard article={article} />)}
+    </div>
+  )}
+</Base>

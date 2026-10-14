@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { absoluteUrl } from '../lib/utils';
 
 interface Props {
   title: string;
@@ -12,7 +13,13 @@ const navItems = [
   { href: '/admin', label: 'Articles', key: 'articles' },
   { href: '/admin/new', label: 'New Article', key: 'new' },
   { href: '/admin/categories', label: 'Categories', key: 'categories' },
+  { href: '/admin/authors', label: 'Authors', key: 'authors' },
+  { href: '/admin/media', label: 'Media', key: 'media' },
+  { href: '/admin/nav', label: 'Navigation', key: 'nav' },
   { href: '/admin/settings', label: 'Settings', key: 'settings' },
+  { href: '/admin/settings/ai', label: 'AI Config', key: 'ai' },
+  { href: '/admin/ideas', label: 'Ideas', key: 'ideas' },
+  { href: '/admin/link-pro', label: 'Link Pro', key: 'link-pro' },
 ];
 ---
 
@@ -37,7 +44,7 @@ const navItems = [
           </a>
         ))}
         <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 1rem 0;" />
-        <a href="/" target="_blank">View Site ↗</a>
+        <a href={absoluteUrl('/')} target="_blank">View Site ↗</a>
         <a href="/api/auth/logout">Log Out</a>
       </nav>
     </aside>

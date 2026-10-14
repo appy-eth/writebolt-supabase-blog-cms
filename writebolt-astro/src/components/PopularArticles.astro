@@ -1,0 +1,30 @@
+---
+import type { Article } from '../lib/types';
+import { formatReadingTime } from '../lib/reading-time';
+import { publicPath } from '../lib/utils';
+
+interface Props {
+  articles: Article[];
+}
+
+const { articles } = Astro.props;
+---
+
+{articles.length > 0 && (
+  <div class="popular">
+    <h3 class="sidebar-heading">Popular Articles</h3>
+    <ol class="popular__list">
+      {articles.map((article, index) => (
+        <li>
+          <a href={publicPath(`/${article.slug}`)} class="popular__item">
+            <span class="popular__num" aria-hidden="true">{index + 1}</span>
+            <span>
+              <span class="popular__title">{article.headline}</span>
+              <span class="popular__meta">{formatReadingTime(article.reading_time_minutes)}</span>
+            </span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </div>
+)}

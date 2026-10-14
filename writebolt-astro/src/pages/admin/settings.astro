@@ -3,6 +3,7 @@ import Admin from '../../layouts/Admin.astro';
 import { requireAuth } from '../../lib/auth';
 import { adminGetSettings } from '../../lib/data';
 import { supabaseAdmin } from '../../lib/supabase';
+import type { SiteSettings } from '../../lib/types';
 
 const authRedirect = requireAuth(Astro.request);
 if (authRedirect) return authRedirect;
@@ -10,56 +11,253 @@ if (authRedirect) return authRedirect;
 let error = '';
 let success = '';
 
-if (Astro.request.method === 'POST') {
-  const form = await Astro.request.formData();
-  const site_name = form.get('site_name')?.toString() || 'My Blog';
-  const site_description = form.get('site_description')?.toString() || '';
-  const logo_url = form.get('logo_url')?.toString() || '';
-
-  const settings = await adminGetSettings();
-  const { error: dbError } = await supabaseAdmin.from('site_settings').update({
-    site_name,
-    site_description,
-    logo_url,
-    updated_at: new Date().toISOString(),
-  }).eq('id', settings.id);
-
-  if (dbError) {
-    error = dbError.message;
-  } else {
-    success = 'Settings saved.';
-  }
+function bool(form: FormData, name: string) {
+  return form.get(name) === 'on';
+}
+function str(form: FormData, name: string) {
+  const v = form.get(name)?.toString() ?? '';
+  return v.trim() ? v : null;
 }
 
-const settings = await adminGetSettings();
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const settings = await adminGetSettings();
+  const updates: Partial<SiteSettings> = {
+    site_name: form.get('site_name')?.toString() || 'My Blog',
+    site_description: form.get('site_description')?.toString() || '',
+    blog_page_heading: str(form, 'blog_page_heading'),
+    show_featured_categories: bool(form, 'show_featured_categories'),
+    logo_url: str(form, 'logo_url'),
+    favicon_url: str(form, 'favicon_url'),
+    layout_mode: (form.get('layout_mode')?.toString() as SiteSettings['layout_mode']) || 'standalone',
+    show_header: bool(form, 'show_header'),
+    show_footer: bool(form, 'show_footer'),
+    show_blog_title: bool(form, 'show_blog_title'),
+    show_reading_time: bool(form, 'show_reading_time'),
+    show_table_of_contents: bool(form, 'show_table_of_contents'),
+    show_related_articles: bool(form, 'show_related_articles'),
+    show_author_card: bool(form, 'show_author_card'),
+    posts_per_page: parseInt(form.get('posts_per_page')?.toString() || '10', 10) || 10,
+    scheduled_publishing_enabled: bool(form, 'scheduled_publishing_enabled'),
+    image_storage_provider: (form.get('image_storage_provider')?.toString() as 'local' | 'supabase') || 'local',
+    supabase_storage_bucket: form.get('supabase_storage_bucket')?.toString() || 'blog-images',
+    inline_cta_enabled: bool(form, 'inline_cta_enabled'),
+    inline_cta_heading: str(form, 'inline_cta_heading'),
+    inline_cta_subheading: str(form, 'inline_cta_subheading'),
+    inline_cta_email_placeholder: str(form, 'inline_cta_email_placeholder'),
+    inline_cta_button_text: str(form, 'inline_cta_button_text'),
+    inline_cta_success_redirect_url: str(form, 'inline_cta_success_redirect_url'),
+    inline_cta_list_id: str(form, 'inline_cta_list_id'),
+    sidebar_cta_enabled: bool(form, 'sidebar_cta_enabled'),
+    sidebar_cta_title: str(form, 'sidebar_cta_title'),
+    sidebar_cta_description: str(form, 'sidebar_cta_description'),
+    sidebar_cta_button_text: str(form, 'sidebar_cta_button_text'),
+    sidebar_cta_button_url: str(form, 'sidebar_cta_button_url'),
+    sidebar_cta_image_url: str(form, 'sidebar_cta_image_url'),
+    newsletter_enabled: bool(form, 'newsletter_enabled'),
+    newsletter_provider: str(form, 'newsletter_provider'),
+    newsletter_list_id: str(form, 'newsletter_list_id'),
+    newsletter_success_message: form.get('newsletter_success_message')?.toString() || 'Thanks for subscribing!',
+    newsletter_success_redirect_url: str(form, 'newsletter_success_redirect_url'),
+    newsletter_embed_url: str(form, 'newsletter_embed_url'),
+    site_title_template: form.get('site_title_template')?.toString() || '{title} | {site_name}',
+    default_og_image: str(form, 'default_og_image'),
+    google_analytics_id: str(form, 'google_analytics_id'),
+    social_website: str(form, 'social_website'),
+    social_twitter: str(form, 'social_twitter'),
+    social_linkedin: str(form, 'social_linkedin'),
+    social_github: str(form, 'social_github'),
+    social_youtube: str(form, 'social_youtube'),
+    writebolt_ads_site_id: str(form, 'writebolt_ads_site_id'),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error: dbError } = await supabaseAdmin
+    .from('site_settings')
+    .update(updates)
+    .eq('id', settings.id);
+
+  if (dbError) error = dbError.message;
+  else success = 'Settings saved.';
+}
+
+const s = await adminGetSettings();
 ---
 
 <Admin title="Settings" active="settings">
   <div class="admin-header">
-    <h1>Site Settings</h1>
+    <div>
+      <h1>Site Settings</h1>
+      <p class="admin-sub">Identity, layout, CTAs, newsletter, SEO, and storage.</p>
+    </div>
   </div>
 
   {error && <div class="login-error" style="margin-bottom: 1rem;">{error}</div>}
-  {success && <div style="background: #e6f7ed; color: #1a7a3a; padding: 0.6rem 1rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">{success}</div>}
+  {success && <div class="success-banner">{success}</div>}
 
-  <form method="POST" style="max-width: 560px;">
-    <div class="form-group">
-      <label for="site_name">Site Name</label>
-      <input type="text" id="site_name" name="site_name" class="form-input" value={settings?.site_name || ''} required />
-      <small style="color: var(--muted); font-size: 0.8rem;">Appears in the header and browser tab.</small>
-    </div>
+  <form method="POST" class="settings-form">
+    <section class="admin-card">
+      <h2>Site Identity</h2>
+      <div class="form-group"><label>Blog name</label><input name="site_name" class="form-input" value={s.site_name} required /></div>
+      <div class="form-group">
+        <label>Homepage heading</label>
+        <input name="blog_page_heading" class="form-input" value={s.blog_page_heading || ''} placeholder={s.site_name} />
+        <p class="form-hint">Shown as the H1 on the blog homepage when the heading is enabled. Leave blank to use the blog name. Avoid a generic “Blog”.</p>
+      </div>
+      <div class="form-group"><label>Description</label><textarea name="site_description" class="form-input" style="min-height:70px;">{s.site_description}</textarea></div>
+      <div class="form-group">
+        <label>Logo URL</label>
+        <div class="upload-row">
+          <input name="logo_url" class="form-input" value={s.logo_url || ''} data-logo-url placeholder="/images/site/logo.png" />
+          <button type="button" class="btn" data-upload-logo>Upload</button>
+          <input type="file" accept="image/*,.ico" hidden data-logo-file />
+        </div>
+        <p class="form-hint">Saved under <code>public/images/site</code> (or your storage bucket).</p>
+      </div>
+      <div class="form-group">
+        <label>Favicon URL</label>
+        <div class="upload-row">
+          <input name="favicon_url" class="form-input" value={s.favicon_url || ''} data-favicon-url placeholder="/images/site/favicon.ico" />
+          <button type="button" class="btn" data-upload-favicon>Upload</button>
+          <input type="file" accept="image/*,.ico" hidden data-favicon-file />
+        </div>
+      </div>
+    </section>
 
-    <div class="form-group">
-      <label for="site_description">Site Description</label>
-      <input type="text" id="site_description" name="site_description" class="form-input" value={settings?.site_description || ''} />
-    </div>
+    <section class="admin-card">
+      <h2>Layout</h2>
+      {(['standalone', 'embedded', 'custom'] as const).map((mode) => (
+        <label class="check-label" style="display:block;margin-bottom:0.5rem;">
+          <input type="radio" name="layout_mode" value={mode} checked={s.layout_mode === mode} />
+          <strong style="text-transform:capitalize">{mode}</strong>
+          {mode === 'standalone' && ' — full header and footer'}
+          {mode === 'embedded' && ' — no header/footer'}
+          {mode === 'custom' && ' — header with your branding'}
+        </label>
+      ))}
+      <label class="check-label"><input type="checkbox" name="show_header" checked={s.show_header} /> Show header</label>
+      <label class="check-label"><input type="checkbox" name="show_footer" checked={s.show_footer} /> Show footer</label>
+      <label class="check-label"><input type="checkbox" name="show_blog_title" checked={s.show_blog_title} /> Show blog heading above articles when header is hidden</label>
+      <label class="check-label"><input type="checkbox" name="show_featured_categories" checked={s.show_featured_categories} /> Show featured category sections under the homepage listing (can repeat the same posts)</label>
+      <label class="check-label"><input type="checkbox" name="show_reading_time" checked={s.show_reading_time} /> Show reading time</label>
+      <label class="check-label"><input type="checkbox" name="show_table_of_contents" checked={s.show_table_of_contents} /> Show table of contents</label>
+      <label class="check-label"><input type="checkbox" name="show_related_articles" checked={s.show_related_articles} /> Show related articles</label>
+      <label class="check-label"><input type="checkbox" name="show_author_card" checked={s.show_author_card} /> Show author card</label>
+      <div class="form-group" style="margin-top:1rem;max-width:8rem;">
+        <label>Posts per page</label>
+        <input type="number" name="posts_per_page" class="form-input" min="1" max="50" value={s.posts_per_page} />
+      </div>
+    </section>
 
-    <div class="form-group">
-      <label for="logo_url">Logo URL (optional)</label>
-      <input type="url" id="logo_url" name="logo_url" class="form-input" value={settings?.logo_url || ''} />
-      <small style="color: var(--muted); font-size: 0.8rem;">If set, replaces the text site name in the header.</small>
-    </div>
+    <section class="admin-card">
+      <h2>Publishing</h2>
+      <label class="check-label"><input type="checkbox" name="scheduled_publishing_enabled" checked={s.scheduled_publishing_enabled} /> Automatic scheduled publishing (GitHub Action)</label>
+    </section>
 
-    <button type="submit" class="btn btn--primary" style="margin-top: 0.5rem;">Save Settings</button>
+    <section class="admin-card">
+      <h2>Image Storage</h2>
+      <label class="check-label"><input type="radio" name="image_storage_provider" value="local" checked={s.image_storage_provider === 'local'} /> Local (public/images/blog/)</label>
+      <label class="check-label"><input type="radio" name="image_storage_provider" value="supabase" checked={s.image_storage_provider === 'supabase'} /> Supabase Storage</label>
+      <div class="form-group" style="margin-top:0.75rem;">
+        <label>Bucket name</label>
+        <input name="supabase_storage_bucket" class="form-input" value={s.supabase_storage_bucket} />
+      </div>
+    </section>
+
+    <section class="admin-card">
+      <h2>Inline CTA</h2>
+      <label class="check-label"><input type="checkbox" name="inline_cta_enabled" checked={s.inline_cta_enabled} /> Show email capture CTA on articles</label>
+      <div class="form-group"><label>Heading</label><input name="inline_cta_heading" class="form-input" value={s.inline_cta_heading || ''} /></div>
+      <div class="form-group"><label>Subheading</label><input name="inline_cta_subheading" class="form-input" value={s.inline_cta_subheading || ''} /></div>
+      <div class="form-group"><label>Email placeholder</label><input name="inline_cta_email_placeholder" class="form-input" value={s.inline_cta_email_placeholder || 'Enter your email'} /></div>
+      <div class="form-group"><label>Button text</label><input name="inline_cta_button_text" class="form-input" value={s.inline_cta_button_text || ''} /></div>
+      <div class="form-group"><label>Success redirect URL</label><input name="inline_cta_success_redirect_url" class="form-input" value={s.inline_cta_success_redirect_url || ''} /></div>
+      <div class="form-group"><label>Email list ID override</label><input name="inline_cta_list_id" class="form-input" value={s.inline_cta_list_id || ''} /></div>
+    </section>
+
+    <section class="admin-card">
+      <h2>Sidebar CTA</h2>
+      <label class="check-label"><input type="checkbox" name="sidebar_cta_enabled" checked={s.sidebar_cta_enabled} /> Enable sidebar CTA</label>
+      <div class="form-group"><label>Title</label><input name="sidebar_cta_title" class="form-input" value={s.sidebar_cta_title || ''} /></div>
+      <div class="form-group"><label>Description</label><input name="sidebar_cta_description" class="form-input" value={s.sidebar_cta_description || ''} /></div>
+      <div class="form-group"><label>Button text</label><input name="sidebar_cta_button_text" class="form-input" value={s.sidebar_cta_button_text || ''} /></div>
+      <div class="form-group"><label>Button URL</label><input name="sidebar_cta_button_url" class="form-input" value={s.sidebar_cta_button_url || ''} /></div>
+      <div class="form-group"><label>Image URL</label><input name="sidebar_cta_image_url" class="form-input" value={s.sidebar_cta_image_url || ''} /></div>
+    </section>
+
+    <section class="admin-card">
+      <h2>Newsletter</h2>
+      <label class="check-label"><input type="checkbox" name="newsletter_enabled" checked={s.newsletter_enabled} /> Show newsletter signup</label>
+      <p class="admin-sub">Add <code>NEWSLETTER_API_KEY</code> to <code>.env</code> and wire your provider in <code>/api/newsletter/subscribe</code>. Or use an embed form URL.</p>
+      <div class="form-group"><label>Provider</label>
+        <select name="newsletter_provider" class="form-input">
+          <option value="">Select provider</option>
+          {['mailchimp','klaviyo','convertkit','beehiiv','buttondown','resend','custom'].map((p) => (
+            <option value={p} selected={s.newsletter_provider === p}>{p}</option>
+          ))}
+        </select>
+      </div>
+      <div class="form-group"><label>Audience / list ID</label><input name="newsletter_list_id" class="form-input" value={s.newsletter_list_id || ''} /></div>
+      <div class="form-group"><label>Success message</label><input name="newsletter_success_message" class="form-input" value={s.newsletter_success_message} /></div>
+      <div class="form-group"><label>Success redirect URL</label><input name="newsletter_success_redirect_url" class="form-input" value={s.newsletter_success_redirect_url || ''} /></div>
+      <div class="form-group"><label>Embed form URL</label><input name="newsletter_embed_url" class="form-input" value={s.newsletter_embed_url || ''} /></div>
+    </section>
+
+    <section class="admin-card">
+      <h2>SEO Defaults</h2>
+      <div class="form-group"><label>Title template</label><input name="site_title_template" class="form-input" value={s.site_title_template} /><small style="color:var(--muted)">Use {'{title}'} and {'{site_name}'}</small></div>
+      <div class="form-group">
+        <label>Default OG image</label>
+        <div class="upload-row">
+          <input name="default_og_image" class="form-input" value={s.default_og_image || ''} data-og-url placeholder="/images/og-default.png" />
+          <button type="button" class="btn" data-upload-og>Upload</button>
+          <input type="file" accept="image/*" hidden data-og-file />
+        </div>
+      </div>
+      <div class="form-group"><label>Google Analytics ID</label><input name="google_analytics_id" class="form-input" placeholder="G-XXXXXXXXXX" value={s.google_analytics_id || ''} /></div>
+    </section>
+
+    <section class="admin-card">
+      <h2>Social Links</h2>
+      <div class="form-group"><label>Website</label><input name="social_website" class="form-input" value={s.social_website || ''} /></div>
+      <div class="form-group"><label>Twitter / X</label><input name="social_twitter" class="form-input" value={s.social_twitter || ''} /></div>
+      <div class="form-group"><label>LinkedIn</label><input name="social_linkedin" class="form-input" value={s.social_linkedin || ''} /></div>
+      <div class="form-group"><label>GitHub</label><input name="social_github" class="form-input" value={s.social_github || ''} /></div>
+      <div class="form-group"><label>YouTube</label><input name="social_youtube" class="form-input" value={s.social_youtube || ''} /></div>
+    </section>
+
+    <section class="admin-card">
+      <h2>Writebolt Ads</h2>
+      <div class="form-group"><label>Site ID (optional)</label><input name="writebolt_ads_site_id" class="form-input" value={s.writebolt_ads_site_id || ''} placeholder="from writebolt.app" /></div>
+    </section>
+
+    <button type="submit" class="btn btn--primary">Save Changes</button>
   </form>
 </Admin>
+
+<script>
+  function bindUpload(btnSel: string, fileSel: string, inputSel: string, folder = 'site') {
+    const btn = document.querySelector(btnSel);
+    const fileInput = document.querySelector(fileSel) as HTMLInputElement | null;
+    const urlInput = document.querySelector(inputSel) as HTMLInputElement | null;
+    btn?.addEventListener('click', () => fileInput?.click());
+    fileInput?.addEventListener('change', async () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('folder', folder);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      if (res.ok) {
+        const { url } = await res.json();
+        if (urlInput) urlInput.value = url;
+      } else {
+        alert('Upload failed');
+      }
+      fileInput.value = '';
+    });
+  }
+  bindUpload('[data-upload-logo]', '[data-logo-file]', '[data-logo-url]');
+  bindUpload('[data-upload-favicon]', '[data-favicon-file]', '[data-favicon-url]');
+  bindUpload('[data-upload-og]', '[data-og-file]', '[data-og-url]');
+</script>

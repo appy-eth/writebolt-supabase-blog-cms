@@ -3,11 +3,6 @@ import node from '@astrojs/node';
 
 export default defineConfig({
   output: 'server',
+  site: process.env.SITE_URL || 'http://localhost:4321',
   adapter: node({ mode: 'standalone' }),
-  vite: {
-    define: {
-      'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL),
-      'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY),
-    }
-  }
 });

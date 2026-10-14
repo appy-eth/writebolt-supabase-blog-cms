@@ -1,0 +1,109 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import { requireAuth } from '../../../lib/auth';
+
+const authRedirect = requireAuth(Astro.request);
+if (authRedirect) return authRedirect;
+---
+
+<Admin title="AI Configuration" active="ai">
+  <div class="admin-header">
+    <div>
+      <h1>AI Configuration</h1>
+      <p class="admin-sub">Bring-your-own-key. Keys are encrypted with SETTINGS_ENCRYPTION_KEY.</p>
+    </div>
+  </div>
+
+  <div id="ai-form" class="admin-card" style="max-width: 560px;">
+    <p data-ai-load>Loading…</p>
+    <form data-ai-settings hidden>
+      <div class="form-group">
+        <label>OpenAI API key</label>
+        <input type="password" class="form-input" data-openai placeholder="sk-… (leave blank to keep existing)" autocomplete="off" />
+        <small data-openai-status style="color:var(--muted)"></small>
+      </div>
+      <div class="form-group">
+        <label>Replicate API key</label>
+        <input type="password" class="form-input" data-replicate placeholder="r8_… (leave blank to keep existing)" autocomplete="off" />
+        <small data-replicate-status style="color:var(--muted)"></small>
+      </div>
+      <div class="form-group">
+        <label>Image provider</label>
+        <select class="form-input" data-provider>
+          <option value="openai">OpenAI DALL·E</option>
+          <option value="replicate">Replicate</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Default tone</label>
+        <select class="form-input" data-tone>
+          <option value="professional">Professional</option>
+          <option value="casual">Casual</option>
+          <option value="witty">Witty</option>
+          <option value="authoritative">Authoritative</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Default image style</label>
+        <select class="form-input" data-style>
+          <option value="photorealistic">Photorealistic</option>
+          <option value="illustrated">Illustrated</option>
+          <option value="minimal">Minimal</option>
+          <option value="editorial">Editorial</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn--primary">Save</button>
+      <span data-saved class="success-banner" hidden style="margin-left:0.75rem;">Saved</span>
+    </form>
+  </div>
+</Admin>
+
+<script>
+  const loadEl = document.querySelector('[data-ai-load]');
+  const form = document.querySelector('[data-ai-settings]') as HTMLFormElement | null;
+
+  async function load() {
+    const res = await fetch('/api/admin/ai-settings');
+    const data = await res.json();
+    if (loadEl) loadEl.hidden = true;
+    if (form) form.hidden = false;
+    const openaiStatus = document.querySelector('[data-openai-status]');
+    const replicateStatus = document.querySelector('[data-replicate-status]');
+    if (openaiStatus) openaiStatus.textContent = data.has_openai_key ? 'A key is saved.' : 'No key saved.';
+    if (replicateStatus) replicateStatus.textContent = data.has_replicate_key ? 'A key is saved.' : 'No key saved.';
+    const provider = document.querySelector('[data-provider]') as HTMLSelectElement | null;
+    const tone = document.querySelector('[data-tone]') as HTMLSelectElement | null;
+    const style = document.querySelector('[data-style]') as HTMLSelectElement | null;
+    if (provider) provider.value = data.image_provider || 'openai';
+    if (tone) tone.value = data.default_tone || 'professional';
+    if (style) style.value = data.default_image_style || 'photorealistic';
+  }
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const openai = (document.querySelector('[data-openai]') as HTMLInputElement)?.value;
+    const replicate = (document.querySelector('[data-replicate]') as HTMLInputElement)?.value;
+    const body: Record<string, string> = {
+      image_provider: (document.querySelector('[data-provider]') as HTMLSelectElement)?.value,
+      default_tone: (document.querySelector('[data-tone]') as HTMLSelectElement)?.value,
+      default_image_style: (document.querySelector('[data-style]') as HTMLSelectElement)?.value,
+    };
+    if (openai) body.openai_api_key = openai;
+    if (replicate) body.replicate_api_key = replicate;
+    const res = await fetch('/api/admin/ai-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const saved = document.querySelector('[data-saved]') as HTMLElement | null;
+    if (res.ok && saved) {
+      saved.hidden = false;
+      setTimeout(() => { saved.hidden = true; }, 3000);
+      load();
+    } else {
+      alert('Failed to save settings');
+    }
+  });
+
+  load();
+</script>

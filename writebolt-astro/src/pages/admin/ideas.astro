@@ -1,0 +1,114 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { requireAuth } from '../../lib/auth';
+import { supabaseAdmin } from '../../lib/supabase';
+import { slugify } from '../../lib/utils';
+import { calculateReadingTime, calculateWordCount } from '../../lib/reading-time';
+
+const authRedirect = requireAuth(Astro.request);
+if (authRedirect) return authRedirect;
+
+const apiBase = String(
+  import.meta.env.WRITEBOLT_PRO_API_URL || process.env.WRITEBOLT_PRO_API_URL || '',
+).replace(/\/$/, '');
+const apiKey = String(
+  import.meta.env.WRITEBOLT_PRO_API_KEY || process.env.WRITEBOLT_PRO_API_KEY || '',
+);
+const connected = Boolean(apiBase && apiKey);
+
+let error = '';
+let ideas: {
+  id: string;
+  headline: string;
+  description?: string;
+  story_type?: string;
+}[] = [];
+
+if (connected && Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const ideaId = form.get('ideaId')?.toString() || '';
+  const res = await fetch(`${apiBase}/api/pro/ideas/draft`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ ideaId }),
+  });
+  const draft = await res.json();
+  if (!res.ok) {
+    error = draft.error || 'Could not write this story';
+  } else {
+    const markdown = draft.markdown || '';
+    const headline = draft.headline || 'Untitled';
+    const { data, error: dbError } = await supabaseAdmin
+      .from('articles')
+      .insert({
+        headline,
+        slug: slugify(headline),
+        content_markdown: markdown,
+        excerpt: draft.excerpt || '',
+        featured_image: '',
+        tags: [],
+        seo_title: draft.seo_title || headline,
+        seo_description: draft.seo_description || draft.excerpt || '',
+        status: 'draft',
+        word_count: calculateWordCount(markdown),
+        reading_time_minutes: calculateReadingTime(markdown),
+        updated_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
+    if (dbError || !data) error = dbError?.message || 'Could not save the draft';
+    else return Astro.redirect(`/admin/edit/${data.id}`);
+  }
+}
+
+if (connected) {
+  const res = await fetch(`${apiBase}/api/pro/ideas`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) error = error || data.error || 'Could not load today’s desk';
+  else ideas = data.ideas || [];
+}
+---
+
+<Admin title="Ideas" active="ideas">
+  <div class="admin-header">
+    <div>
+      <h1>Today’s desk</h1>
+      <p class="admin-sub">2–3 news stories from Writebolt Pro, saved into this blog as drafts.</p>
+    </div>
+  </div>
+
+  {!connected && (
+    <div class="login-error" style="margin-bottom: 1rem;">
+      Add <code>WRITEBOLT_PRO_API_URL</code> and <code>WRITEBOLT_PRO_API_KEY</code> to this site’s environment.
+      Create the key from the Writebolt dashboard after you subscribe.
+    </div>
+  )}
+  {error && <div class="login-error" style="margin-bottom: 1rem;">{error}</div>}
+
+  {connected && ideas.length === 0 && !error && (
+    <p class="admin-sub">No stories yet today. The Pro desk runs once a day for paid accounts.</p>
+  )}
+
+  <div style="display: grid; gap: 1rem;">
+    {ideas.map((idea) => (
+      <article style="border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem; background: white;">
+        {idea.story_type && (
+          <p style="font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #6b7280; margin: 0 0 0.35rem;">
+            {idea.story_type}
+          </p>
+        )}
+        <h2 style="font-size: 1.05rem; margin: 0;">{idea.headline}</h2>
+        {idea.description && <p style="color: #4b5563; font-size: 0.9rem;">{idea.description}</p>}
+        <form method="POST">
+          <input type="hidden" name="ideaId" value={idea.id} />
+          <button class="btn btn--primary" type="submit">Write this</button>
+        </form>
+      </article>
+    ))}
+  </div>
+</Admin>

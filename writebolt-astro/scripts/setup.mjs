@@ -2,20 +2,21 @@
 
 /**
  * Writebolt Blog Setup
- * Seeds the default author, blog settings, and nav items.
+ * Seeds the default author, site settings, and AI settings row.
  *
  * Usage: npm run setup
  * Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
+import { randomBytes } from 'crypto';
 
-// Load .env manually (no dotenv dependency needed if using node --env-file)
 let envVars = {};
+const envPath = resolve(process.cwd(), '.env');
 try {
-  const envFile = readFileSync(resolve(process.cwd(), '.env'), 'utf8');
+  const envFile = readFileSync(envPath, 'utf8');
   envFile.split('\n').forEach((line) => {
     const [key, ...val] = line.split('=');
     if (key && !key.startsWith('#')) {
@@ -32,12 +33,17 @@ if (!url || !key) {
   process.exit(1);
 }
 
+if (!envVars.SETTINGS_ENCRYPTION_KEY && !process.env.SETTINGS_ENCRYPTION_KEY && existsSync(envPath)) {
+  const generated = randomBytes(32).toString('hex');
+  writeFileSync(envPath, `${readFileSync(envPath, 'utf8').trim()}\nSETTINGS_ENCRYPTION_KEY=${generated}\n`);
+  console.log('  ✓ Generated SETTINGS_ENCRYPTION_KEY in .env');
+}
+
 const supabase = createClient(url, key);
 
 async function setup() {
   console.log('⚡ Writebolt Blog Setup\n');
 
-  // 1. Default author
   const { data: existingAuthor } = await supabase
     .from('authors')
     .select('id')
@@ -45,13 +51,18 @@ async function setup() {
     .single();
 
   if (!existingAuthor) {
-    await supabase.from('authors').insert({ name: 'Admin', slug: 'admin', is_default: true });
+    await supabase.from('authors').insert({
+      name: 'Admin',
+      slug: 'admin',
+      is_default: true,
+      role: 'admin',
+      is_active: true,
+    });
     console.log('  ✓ Default author created');
   } else {
     console.log('  · Default author exists');
   }
 
-  // 2. Site settings
   const { data: existingSettings } = await supabase
     .from('site_settings')
     .select('id')
@@ -66,6 +77,19 @@ async function setup() {
     console.log('  ✓ Site settings created');
   } else {
     console.log('  · Site settings exist');
+  }
+
+  const { data: existingAi } = await supabase
+    .from('ai_settings')
+    .select('id')
+    .limit(1)
+    .single();
+
+  if (!existingAi) {
+    await supabase.from('ai_settings').insert({ image_provider: 'openai' });
+    console.log('  ✓ AI settings row created');
+  } else {
+    console.log('  · AI settings exist');
   }
 
   console.log('\n✅ Setup complete. Run `npm run dev` to start.\n');

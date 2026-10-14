@@ -2,31 +2,56 @@
 import Admin from '../../layouts/Admin.astro';
 import { requireAuth } from '../../lib/auth';
 import { adminGetAllArticles } from '../../lib/data';
-import { formatDate } from '../../lib/utils';
+import { absoluteUrl, formatDate, publicPath } from '../../lib/utils';
 
 const authRedirect = requireAuth(Astro.request);
 if (authRedirect) return authRedirect;
 
-const articles = await adminGetAllArticles();
+const url = new URL(Astro.request.url);
+const filter = url.searchParams.get('status') || 'all';
+const articles = await adminGetAllArticles(filter);
+
+const FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'published', label: 'Published' },
+  { id: 'draft', label: 'Drafts' },
+  { id: 'scheduled', label: 'Scheduled' },
+  { id: 'archived', label: 'Archived' },
+];
 ---
 
 <Admin title="Articles" active="articles">
   <div class="admin-header">
-    <h1>Articles</h1>
+    <div>
+      <h1>Articles</h1>
+      <p class="admin-sub">Manage your blog articles</p>
+    </div>
     <a href="/admin/new" class="btn btn--primary">+ New Article</a>
   </div>
 
+  <div class="filter-tabs">
+    {FILTERS.map((f) => (
+      <a
+        href={f.id === 'all' ? '/admin' : `/admin?status=${f.id}`}
+        class:list={['filter-tab', { 'is-active': filter === f.id }]}
+      >
+        {f.label}
+      </a>
+    ))}
+  </div>
+
   {articles.length === 0 ? (
-    <div style="text-align: center; padding: 3rem; color: var(--muted);">
-      <p>No articles yet. Create your first one!</p>
+    <div class="empty-state empty-state--lg">
+      <p>{filter === 'all' ? 'No articles yet. Create your first one!' : 'No articles in this filter.'}</p>
+      {filter === 'all' && <a href="/admin/new" class="btn btn--primary" style="margin-top: 1rem;">Write your first article</a>}
     </div>
   ) : (
     <table class="admin-table">
       <thead>
         <tr>
           <th>Title</th>
-          <th>Category</th>
           <th>Status</th>
+          <th>Category</th>
           <th>Updated</th>
           <th></th>
         </tr>
@@ -35,18 +60,24 @@ const articles = await adminGetAllArticles();
         {articles.map((a) => (
           <tr>
             <td>
-              <strong>{a.headline}</strong>
-              <div style="font-size: 0.8rem; color: var(--muted);">/{a.slug}</div>
+              <a href={`/admin/edit/${a.id}`}><strong>{a.headline}</strong></a>
+              <div style="font-size: 0.8rem; color: var(--muted);">{publicPath(`/${a.slug}`)}</div>
+            </td>
+            <td>
+              <span class={`status-badge status-badge--${a.status}`}>{a.status}</span>
+              {a.status === 'scheduled' && a.scheduled_for && (
+                <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem;">
+                  {new Date(a.scheduled_for).toLocaleString()}
+                </div>
+              )}
             </td>
             <td>{a.categories?.name || '—'}</td>
-            <td>
-              <span class={`status-badge status-badge--${a.status}`}>
-                {a.status}
-              </span>
-            </td>
             <td style="color: var(--muted); font-size: 0.85rem;">{formatDate(a.updated_at)}</td>
             <td>
               <a href={`/admin/edit/${a.id}`} class="btn btn--sm">Edit</a>
+              {a.status === 'published' && (
+                <a href={absoluteUrl(`/${a.slug}`)} target="_blank" class="btn btn--sm">View</a>
+              )}
             </td>
           </tr>
         ))}

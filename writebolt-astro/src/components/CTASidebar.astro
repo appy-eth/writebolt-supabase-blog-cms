@@ -1,0 +1,20 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+  buttonText?: string;
+  buttonUrl?: string;
+  imageUrl?: string;
+}
+
+const { title, description, buttonText, buttonUrl, imageUrl } = Astro.props;
+---
+
+<div class="cta-card" role="complementary" aria-label="Sidebar call to action">
+  {imageUrl && <img src={imageUrl} alt="" loading="lazy" />}
+  <h3>{title}</h3>
+  {description && <p>{description}</p>}
+  {buttonText && buttonUrl && (
+    <a href={buttonUrl} class="btn btn--primary">{buttonText}</a>
+  )}
+</div>

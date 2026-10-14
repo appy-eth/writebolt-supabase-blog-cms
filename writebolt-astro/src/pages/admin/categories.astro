@@ -16,10 +16,31 @@ if (Astro.request.method === 'POST') {
 
   if (action === 'add') {
     const name = form.get('name')?.toString() || '';
-    const slug = slugify(name);
+    const slug = form.get('slug')?.toString() || slugify(name);
+    const description = form.get('description')?.toString() || null;
     const show_in_nav = form.get('show_in_nav') === 'on';
-    const { error: dbError } = await supabaseAdmin.from('categories').insert({ name, slug, show_in_nav });
+    const home_page_featured = form.get('home_page_featured') === 'on';
+    const cats = await adminGetCategories();
+    const { error: dbError } = await supabaseAdmin.from('categories').insert({
+      name,
+      slug,
+      description,
+      show_in_nav,
+      home_page_featured,
+      sort_order: cats.length,
+    });
     if (dbError) error = dbError.message;
+  }
+
+  if (action === 'update') {
+    const id = form.get('id')?.toString();
+    await supabaseAdmin.from('categories').update({
+      name: form.get('name')?.toString(),
+      slug: form.get('slug')?.toString(),
+      description: form.get('description')?.toString() || null,
+      show_in_nav: form.get('show_in_nav') === 'on',
+      home_page_featured: form.get('home_page_featured') === 'on',
+    }).eq('id', id);
   }
 
   if (action === 'delete') {
@@ -27,10 +48,18 @@ if (Astro.request.method === 'POST') {
     await supabaseAdmin.from('categories').delete().eq('id', id);
   }
 
-  if (action === 'toggle_nav') {
+  if (action === 'move') {
     const id = form.get('id')?.toString();
-    const current = form.get('current_nav')?.toString() === 'true';
-    await supabaseAdmin.from('categories').update({ show_in_nav: !current }).eq('id', id);
+    const dir = Number(form.get('dir'));
+    const cats = await adminGetCategories();
+    const idx = cats.findIndex((c) => c.id === id);
+    const next = idx + dir;
+    if (idx >= 0 && next >= 0 && next < cats.length) {
+      const a = cats[idx];
+      const b = cats[next];
+      await supabaseAdmin.from('categories').update({ sort_order: b.sort_order }).eq('id', a.id);
+      await supabaseAdmin.from('categories').update({ sort_order: a.sort_order }).eq('id', b.id);
+    }
   }
 }
 
@@ -41,23 +70,33 @@ const categories = await adminGetCategories();
   <div class="admin-header">
     <h1>Categories</h1>
   </div>
-
   {error && <div class="login-error" style="margin-bottom: 1rem;">{error}</div>}
 
-  <!-- Add category form -->
-  <form method="POST" style="display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 2rem;">
+  <form method="POST" class="admin-card" style="margin-bottom: 2rem;">
     <input type="hidden" name="action" value="add" />
-    <div class="form-group" style="flex: 1; margin-bottom: 0;">
-      <label for="name">New Category</label>
-      <input type="text" id="name" name="name" class="form-input" placeholder="e.g. Technology" required />
+    <h2 style="font-size: 1rem; margin-bottom: 1rem;">Add category</h2>
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" class="form-input" required />
+      </div>
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="slug">Slug (optional)</label>
+        <input type="text" id="slug" name="slug" class="form-input" />
+      </div>
     </div>
-    <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; padding-bottom: 0.15rem;">
-      <input type="checkbox" name="show_in_nav" checked /> Show in nav
-    </label>
-    <button type="submit" class="btn btn--primary">Add</button>
+    <div class="form-group">
+      <label for="description">Description</label>
+      <input type="text" id="description" name="description" class="form-input" />
+    </div>
+    <div style="display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap;">
+      <label class="check-label"><input type="checkbox" name="show_in_nav" checked /> Show in header nav</label>
+      <label class="check-label"><input type="checkbox" name="home_page_featured" /> Feature on homepage</label>
+      <span class="form-hint">Only shown if Settings → “Show featured category sections” is on.</span>
+      <button type="submit" class="btn btn--primary">Add</button>
+    </div>
   </form>
 
-  <!-- Existing categories -->
   {categories.length === 0 ? (
     <p style="color: var(--muted);">No categories yet.</p>
   ) : (
@@ -65,29 +104,47 @@ const categories = await adminGetCategories();
       <thead>
         <tr>
           <th>Name</th>
-          <th>Slug</th>
-          <th>In Header Nav</th>
+          <th>Nav / Featured</th>
+          <th>Order</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        {categories.map((c) => (
+        {categories.map((c, i) => (
           <tr>
-            <td><strong>{c.name}</strong></td>
-            <td style="color: var(--muted);">/{c.slug}</td>
             <td>
-              <form method="POST" style="display: inline;">
-                <input type="hidden" name="action" value="toggle_nav" />
+              <form method="POST">
+                <input type="hidden" name="action" value="update" />
                 <input type="hidden" name="id" value={c.id} />
-                <input type="hidden" name="current_nav" value={String(c.show_in_nav)} />
-                <button type="submit" class="btn btn--sm">
-                  {c.show_in_nav ? '✓ Visible' : '✗ Hidden'}
-                </button>
+                <input type="text" name="name" class="form-input" value={c.name} style="margin-bottom:0.4rem;" />
+                <input type="text" name="slug" class="form-input" value={c.slug} style="margin-bottom:0.4rem;" />
+                <input type="text" name="description" class="form-input" value={c.description || ''} placeholder="Description" />
+                <div style="margin-top:0.5rem;display:flex;gap:1rem;align-items:center;">
+                  <label class="check-label"><input type="checkbox" name="show_in_nav" checked={c.show_in_nav} /> Nav</label>
+                  <label class="check-label"><input type="checkbox" name="home_page_featured" checked={c.home_page_featured} /> Featured</label>
+                  <button type="submit" class="btn btn--sm">Save</button>
+                </div>
+              </form>
+            </td>
+            <td style="color: var(--muted); font-size: 0.85rem;">
+              {c.show_in_nav ? 'Visible' : 'Hidden'}{c.home_page_featured ? ' · Featured' : ''}
+            </td>
+            <td>
+              <form method="POST" style="display:inline;">
+                <input type="hidden" name="action" value="move" />
+                <input type="hidden" name="id" value={c.id} />
+                <input type="hidden" name="dir" value="-1" />
+                <button type="submit" class="btn btn--sm" disabled={i === 0}>↑</button>
+              </form>
+              <form method="POST" style="display:inline;">
+                <input type="hidden" name="action" value="move" />
+                <input type="hidden" name="id" value={c.id} />
+                <input type="hidden" name="dir" value="1" />
+                <button type="submit" class="btn btn--sm" disabled={i === categories.length - 1}>↓</button>
               </form>
             </td>
             <td>
-              <form method="POST" style="display: inline;"
-                onsubmit="return confirm('Delete this category?')">
+              <form method="POST" onsubmit="return confirm('Delete this category? Articles will become uncategorized.')">
                 <input type="hidden" name="action" value="delete" />
                 <input type="hidden" name="id" value={c.id} />
                 <button type="submit" class="btn btn--sm" style="color: var(--accent);">Delete</button>
@@ -98,8 +155,4 @@ const categories = await adminGetCategories();
       </tbody>
     </table>
   )}
-
-  <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--muted);">
-    Categories marked "Visible" appear in the site header next to the logo.
-  </p>
 </Admin>

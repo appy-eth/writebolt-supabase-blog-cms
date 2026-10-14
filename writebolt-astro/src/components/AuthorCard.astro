@@ -1,0 +1,41 @@
+---
+import type { Author } from '../lib/types';
+import { publicPath } from '../lib/utils';
+
+interface Props {
+  author: Author;
+  compact?: boolean;
+}
+
+const { author, compact = false } = Astro.props;
+---
+
+<div class:list={['author-card', { 'author-card--compact': compact }]}>
+  {author.avatar_url ? (
+    <img src={author.avatar_url} alt="" class="author-card__avatar" />
+  ) : (
+    <div class="author-card__avatar author-card__avatar--fallback" aria-hidden="true">
+      {author.name.charAt(0)}
+    </div>
+  )}
+  <div class="author-card__body">
+    <a href={publicPath(`/authors/${author.slug}`)} class="author-card__name">{author.name}</a>
+    {author.bio && <p class="author-card__bio">{author.bio}</p>}
+    {!compact && (
+      <div class="author-card__links">
+        {author.twitter_handle && (
+          <a href={`https://twitter.com/${author.twitter_handle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" aria-label={`${author.name} on Twitter`}>Twitter</a>
+        )}
+        {author.linkedin_url && (
+          <a href={author.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label={`${author.name} on LinkedIn`}>LinkedIn</a>
+        )}
+        {author.github_url && (
+          <a href={author.github_url} target="_blank" rel="noopener noreferrer" aria-label={`${author.name} on GitHub`}>GitHub</a>
+        )}
+        {author.website_url && (
+          <a href={author.website_url} target="_blank" rel="noopener noreferrer" aria-label={`${author.name}'s website`}>Website</a>
+        )}
+      </div>
+    )}
+  </div>
+</div>

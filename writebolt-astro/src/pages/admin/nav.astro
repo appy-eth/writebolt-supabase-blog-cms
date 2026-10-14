@@ -1,0 +1,129 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { requireAuth } from '../../lib/auth';
+import { adminGetNavItems } from '../../lib/data';
+import { supabaseAdmin } from '../../lib/supabase';
+
+const authRedirect = requireAuth(Astro.request);
+if (authRedirect) return authRedirect;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = form.get('action')?.toString() || '';
+
+  if (action === 'add') {
+    const items = await adminGetNavItems();
+    const url = form.get('url')?.toString() || '';
+    await supabaseAdmin.from('nav_items').insert({
+      label: form.get('label')?.toString() || '',
+      url,
+      open_in_new_tab: url.startsWith('http'),
+      display_order: items.length,
+      is_visible: true,
+    });
+  }
+
+  if (action === 'update') {
+    const id = form.get('id')?.toString();
+    await supabaseAdmin.from('nav_items').update({
+      label: form.get('label')?.toString(),
+      url: form.get('url')?.toString(),
+      open_in_new_tab: form.get('open_in_new_tab') === 'on',
+      is_visible: form.get('is_visible') === 'on',
+    }).eq('id', id);
+  }
+
+  if (action === 'delete') {
+    await supabaseAdmin.from('nav_items').delete().eq('id', form.get('id')?.toString());
+  }
+
+  if (action === 'move') {
+    const id = form.get('id')?.toString();
+    const dir = Number(form.get('dir'));
+    const items = await adminGetNavItems();
+    const idx = items.findIndex((i) => i.id === id);
+    const next = idx + dir;
+    if (idx >= 0 && next >= 0 && next < items.length) {
+      const a = items[idx];
+      const b = items[next];
+      await supabaseAdmin.from('nav_items').update({ display_order: b.display_order }).eq('id', a.id);
+      await supabaseAdmin.from('nav_items').update({ display_order: a.display_order }).eq('id', b.id);
+    }
+  }
+}
+
+const items = await adminGetNavItems();
+---
+
+<Admin title="Navigation" active="nav">
+  <div class="admin-header">
+    <div>
+      <h1>Navigation</h1>
+      <p class="admin-sub">Custom links shown in the header next to categories.</p>
+    </div>
+  </div>
+
+  <form method="POST" style="display:flex;gap:0.75rem;align-items:flex-end;margin-bottom:2rem;flex-wrap:wrap;">
+    <input type="hidden" name="action" value="add" />
+    <div class="form-group" style="margin-bottom:0;flex:1;min-width:160px;">
+      <label>Label</label>
+      <input name="label" class="form-input" required />
+    </div>
+    <div class="form-group" style="margin-bottom:0;flex:2;min-width:200px;">
+      <label>URL</label>
+      <input name="url" class="form-input" placeholder="/authors or https://…" required />
+    </div>
+    <button type="submit" class="btn btn--primary">Add</button>
+  </form>
+
+  {items.length === 0 ? (
+    <p style="color: var(--muted);">No custom nav items yet. Categories in the header are managed under Categories.</p>
+  ) : (
+    <table class="admin-table">
+      <thead>
+        <tr><th>Label / URL</th><th>Visible</th><th>Order</th><th></th></tr>
+      </thead>
+      <tbody>
+        {items.map((item, i) => (
+          <tr>
+            <td>
+              <form method="POST">
+                <input type="hidden" name="action" value="update" />
+                <input type="hidden" name="id" value={item.id} />
+                <input name="label" class="form-input" value={item.label} style="margin-bottom:0.4rem;" />
+                <input name="url" class="form-input" value={item.url} />
+                <div style="margin-top:0.5rem;display:flex;gap:1rem;">
+                  <label class="check-label"><input type="checkbox" name="is_visible" checked={item.is_visible} /> Visible</label>
+                  <label class="check-label"><input type="checkbox" name="open_in_new_tab" checked={item.open_in_new_tab} /> New tab</label>
+                  <button type="submit" class="btn btn--sm">Save</button>
+                </div>
+              </form>
+            </td>
+            <td>{item.is_visible ? 'Yes' : 'No'}</td>
+            <td>
+              <form method="POST" style="display:inline;">
+                <input type="hidden" name="action" value="move" />
+                <input type="hidden" name="id" value={item.id} />
+                <input type="hidden" name="dir" value="-1" />
+                <button class="btn btn--sm" disabled={i === 0}>↑</button>
+              </form>
+              <form method="POST" style="display:inline;">
+                <input type="hidden" name="action" value="move" />
+                <input type="hidden" name="id" value={item.id} />
+                <input type="hidden" name="dir" value="1" />
+                <button class="btn btn--sm" disabled={i === items.length - 1}>↓</button>
+              </form>
+            </td>
+            <td>
+              <form method="POST" onsubmit="return confirm('Delete this menu item?')">
+                <input type="hidden" name="action" value="delete" />
+                <input type="hidden" name="id" value={item.id} />
+                <button class="btn btn--sm" style="color: var(--accent);">Delete</button>
+              </form>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+</Admin>

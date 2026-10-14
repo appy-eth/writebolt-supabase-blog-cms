@@ -1,0 +1,56 @@
+---
+interface Props {
+  placement: 'sidebar' | 'in-article' | 'footer';
+  siteId?: string | null;
+}
+
+const { placement, siteId } = Astro.props;
+const apiUrl = import.meta.env.PUBLIC_WRITEBOLT_ADS_API_URL || 'https://api.writebolt.app';
+---
+
+<aside
+  class:list={['wb-ad', `wb-ad--${placement}`]}
+  data-writebolt-ad={placement}
+  data-site-id={siteId || ''}
+  data-api={apiUrl.replace(/\/$/, '')}
+  aria-label="Advertisement"
+  hidden
+></aside>
+
+<script>
+  document.querySelectorAll('[data-writebolt-ad]').forEach((el) => {
+    const host = el as HTMLElement;
+    if (host.dataset.loaded) return;
+    host.dataset.loaded = 'true';
+    const api = host.dataset.api || 'https://api.writebolt.app';
+    const placement = host.getAttribute('data-writebolt-ad') || 'in-article';
+    const siteId = host.dataset.siteId;
+    const params = new URLSearchParams({ placement, url: window.location.href });
+    if (siteId) params.set('site_id', siteId);
+
+    fetch(`${api}/ads/serve?${params}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((ad) => {
+        if (!ad?.ad_id) return;
+        const q = new URLSearchParams({ ad_id: ad.ad_id });
+        if (siteId) q.set('site_id', siteId);
+        const clickHref = `${api}/ads/click?${q}`;
+        const img = new Image();
+        img.alt = '';
+        img.width = 1;
+        img.height = 1;
+        img.src = `${api}/ads/impression?${q}`;
+
+        host.hidden = false;
+        host.innerHTML = `
+          ${ad.image_url && ad.style !== 'minimal' ? `<a href="${clickHref}" target="_blank" rel="noopener noreferrer sponsored"><img src="${ad.image_url}" alt="" /></a>` : ''}
+          <p class="wb-ad__label">Sponsored</p>
+          <h3><a href="${clickHref}" target="_blank" rel="noopener noreferrer sponsored">${ad.headline}</a></h3>
+          ${ad.body ? `<p class="wb-ad__body">${ad.body}</p>` : ''}
+          <a class="wb-ad__cta" href="${clickHref}" target="_blank" rel="noopener noreferrer sponsored">${ad.cta}</a>
+          <p class="wb-ad__attr"><a href="https://writebolt.com/?ref=ad-attribution" target="_blank" rel="noopener">Ad by Writebolt</a></p>
+        `;
+      })
+      .catch(() => {});
+  });
+</script>

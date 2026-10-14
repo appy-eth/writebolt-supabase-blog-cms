@@ -1,42 +1,60 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getArticlesByCategory } from '../../lib/data';
-import { formatDate } from '../../lib/utils';
+import ArticleCard from '../../components/ArticleCard.astro';
+import Pagination from '../../components/Pagination.astro';
+import Sidebar from '../../components/Sidebar.astro';
+import {
+  getCategoryBySlug,
+  getPublishedArticles,
+  getSiteSettings,
+  getCategories,
+} from '../../lib/data';
+import { isEmbeddedLayout } from '../../lib/seo';
+import CategoryFilter from '../../components/CategoryFilter.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import { publicPath } from '../../lib/utils';
 
 const { slug } = Astro.params;
-const { category, articles } = await getArticlesByCategory(slug!);
+const category = await getCategoryBySlug(slug!);
+if (!category) return Astro.redirect('/404');
 
-if (!category) {
-  return Astro.redirect('/404');
-}
+const settings = await getSiteSettings();
+const categories = await getCategories();
+const embedded = isEmbeddedLayout(settings);
+const url = new URL(Astro.request.url);
+const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
+const perPage = settings.posts_per_page || 10;
+
+const { articles, total } = await getPublishedArticles({
+  categoryId: category.id,
+  limit: perPage,
+  offset: (page - 1) * perPage,
+});
+const totalPages = Math.ceil(total / perPage);
 ---
 
-<Base title={category.name}>
-  <h1 class="category-title">{category.name}</h1>
+<Base title={category.name} description={category.description || `Articles in ${category.name}`}>
+  <Breadcrumbs items={[{ label: 'Blog', href: publicPath('/') }, { label: category.name }]} />
+  {embedded && <CategoryFilter categories={categories} activeSlug={category.slug} />}
+  <div class="listing-layout">
+    <div class="listing-main">
+      <h1 class="category-title">{category.name}</h1>
+      {category.description ? (
+        <p class="listing-meta">{category.description}</p>
+      ) : (
+        <p class="listing-meta">{total} article{total !== 1 ? 's' : ''}</p>
+      )}
 
-  {articles.length === 0 ? (
-    <p style="color: var(--muted);">No articles in this category yet.</p>
-  ) : (
-    <div class="article-grid">
-      {articles.map((article) => (
-        <article class="article-card">
-          {article.featured_image && (
-            <img class="article-card__img" src={article.featured_image} alt={article.headline} loading="lazy" />
-          )}
-          <div class="article-card__body">
-            <h2 class="article-card__title">
-              <a href={`/${article.slug}`}>{article.headline}</a>
-            </h2>
-            {article.excerpt && <p class="article-card__excerpt">{article.excerpt}</p>}
-            <div class="article-card__meta">
-              {article.authors?.avatar_url && <img src={article.authors.avatar_url} alt="" />}
-              <span>{article.authors?.name}</span>
-              <span>·</span>
-              <time>{formatDate(article.published_at)}</time>
-            </div>
-          </div>
-        </article>
-      ))}
+      {articles.length > 0 ? (
+        <div class="article-grid">
+          {articles.map((article) => <ArticleCard article={article} />)}
+        </div>
+      ) : (
+        <p class="empty-state">No articles in this category yet.</p>
+      )}
+
+      <Pagination currentPage={page} totalPages={totalPages} basePath={publicPath(`/category/${category.slug}`)} />
     </div>
-  )}
+    <Sidebar settings={settings} />
+  </div>
 </Base>

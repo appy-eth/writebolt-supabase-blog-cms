@@ -1,43 +1,95 @@
 ---
 import Base from '../layouts/Base.astro';
-import { getPublishedArticles } from '../lib/data';
-import { formatDate } from '../lib/utils';
+import ArticleCard from '../components/ArticleCard.astro';
+import Pagination from '../components/Pagination.astro';
+import Sidebar from '../components/Sidebar.astro';
+import {
+  getPublishedArticles,
+  getFeaturedCategoryArticles,
+  getSiteSettings,
+  getCategories,
+} from '../lib/data';
+import {
+  blogJsonLd,
+  shouldShowPageBlogTitle,
+  isEmbeddedLayout,
+  shouldShowFeaturedCategories,
+  blogPageHeading,
+} from '../lib/seo';
+import CategoryFilter from '../components/CategoryFilter.astro';
+import { publicPath } from '../lib/utils';
 
-const { articles } = await getPublishedArticles();
+const settings = await getSiteSettings();
+const categories = await getCategories();
+const url = new URL(Astro.request.url);
+const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
+const searchQuery = url.searchParams.get('q') || undefined;
+const perPage = settings.posts_per_page || 10;
+const embedded = isEmbeddedLayout(settings);
+
+const { articles, total } = await getPublishedArticles({
+  limit: perPage,
+  offset: (page - 1) * perPage,
+  search: searchQuery,
+});
+const showFeatured = !searchQuery && shouldShowFeaturedCategories(settings);
+const featured = showFeatured ? await getFeaturedCategoryArticles() : [];
+const totalPages = Math.ceil(total / perPage);
+const isSearching = !!searchQuery;
+const showPageTitle = shouldShowPageBlogTitle(settings);
+const searchBase = publicPath(searchQuery ? `/?q=${encodeURIComponent(searchQuery)}` : '/');
 ---
 
-<Base>
-  {articles.length === 0 ? (
-    <div style="text-align: center; padding: 4rem 0;">
-      <p style="color: var(--muted); font-size: 1.1rem;">No articles published yet.</p>
-      <a href="/admin" class="btn btn--primary" style="margin-top: 1rem;">Go to Admin →</a>
-    </div>
-  ) : (
-    <div class="article-grid">
-      {articles.map((article) => (
-        <article class="article-card">
-          {article.featured_image && (
-            <img class="article-card__img" src={article.featured_image} alt={article.headline} loading="lazy" />
-          )}
-          <div class="article-card__body">
-            {article.categories && (
-              <div class="article-card__cat">
-                <a href={`/category/${article.categories.slug}`}>{article.categories.name}</a>
-              </div>
-            )}
-            <h2 class="article-card__title">
-              <a href={`/${article.slug}`}>{article.headline}</a>
-            </h2>
-            {article.excerpt && <p class="article-card__excerpt">{article.excerpt}</p>}
-            <div class="article-card__meta">
-              {article.authors?.avatar_url && <img src={article.authors.avatar_url} alt="" />}
-              <span>{article.authors?.name}</span>
-              <span>·</span>
-              <time>{formatDate(article.published_at)}</time>
+<Base jsonLd={blogJsonLd(settings)}>
+  {showPageTitle && <h1 class="page-blog-title">{blogPageHeading(settings)}</h1>}
+
+  {embedded && !isSearching && <CategoryFilter categories={categories} />}
+
+  <div class="listing-layout">
+    <div class="listing-main">
+      {isSearching ? (
+        <>
+          <p class="listing-meta">
+            {total} result{total !== 1 ? 's' : ''} for “{searchQuery}”
+          </p>
+          {articles.length > 0 ? (
+            <div class="article-grid">
+              {articles.map((article) => <ArticleCard article={article} />)}
             </div>
+          ) : (
+            <p class="empty-state">No articles found matching your search.</p>
+          )}
+        </>
+      ) : (
+        <>
+          {articles.length > 0 ? (
+            <div class="article-grid">
+              {articles.map((article) => <ArticleCard article={article} />)}
+            </div>
+          ) : (
+            <div class="empty-state empty-state--lg">
+              <p>No articles published yet.</p>
+              <p><a href="/admin/new">Write your first article →</a></p>
+            </div>
+          )}
+        </>
+      )}
+
+      <Pagination currentPage={page} totalPages={totalPages} basePath={searchBase} />
+
+      {!isSearching && featured.map(({ category, articles: catArticles }) => (
+        <section class="featured-cat">
+          <div class="featured-cat__head">
+            <h2>{category.name}</h2>
+            <a href={publicPath(`/category/${category.slug}`)}>View all →</a>
           </div>
-        </article>
+          <div class="article-grid">
+            {catArticles.map((article) => <ArticleCard article={article} />)}
+          </div>
+        </section>
       ))}
     </div>
-  )}
+
+    <Sidebar settings={settings} searchQuery={searchQuery || ''} />
+  </div>
 </Base>

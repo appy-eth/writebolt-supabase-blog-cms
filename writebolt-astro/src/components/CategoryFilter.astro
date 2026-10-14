@@ -1,0 +1,25 @@
+---
+import type { Category } from '../lib/types';
+import { publicPath } from '../lib/utils';
+
+interface Props {
+  categories: Category[];
+  activeSlug?: string;
+}
+
+const { categories, activeSlug } = Astro.props;
+---
+
+{categories.length > 0 && (
+  <nav class="category-filter" aria-label="Filter by category">
+    <a href={publicPath('/')} class={!activeSlug ? 'is-active' : undefined}>All</a>
+    {categories.map((cat) => (
+      <a
+        href={publicPath(`/category/${cat.slug}`)}
+        class={activeSlug === cat.slug ? 'is-active' : undefined}
+      >
+        {cat.name}
+      </a>
+    ))}
+  </nav>
+)}

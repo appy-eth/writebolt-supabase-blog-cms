@@ -1,0 +1,31 @@
+<div
+  class="reading-progress"
+  data-reading-progress
+  role="progressbar"
+  aria-valuemin="0"
+  aria-valuemax="100"
+  aria-valuenow="0"
+  aria-label="Reading progress"
+  hidden
+>
+  <div class="reading-progress__bar" data-reading-bar></div>
+</div>
+
+<script>
+  const root = document.querySelector('[data-reading-progress]');
+  const bar = document.querySelector('[data-reading-bar]');
+  const article = document.querySelector('.prose, article');
+  if (root && bar && article) {
+    function onScroll() {
+      const rect = article!.getBoundingClientRect();
+      const articleTop = rect.top + window.scrollY;
+      const articleHeight = rect.height;
+      const scrolled = window.scrollY - articleTop;
+      const pct = Math.min(100, Math.max(0, (scrolled / (articleHeight - window.innerHeight)) * 100));
+      (bar as HTMLElement).style.width = `${pct}%`;
+      root!.setAttribute('aria-valuenow', String(Math.round(pct)));
+      (root as HTMLElement).hidden = scrolled <= 100;
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+  }
+</script>

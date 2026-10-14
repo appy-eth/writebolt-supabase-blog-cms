@@ -1,0 +1,105 @@
+---
+interface Props {
+  embedUrl?: string | null;
+  listId?: string | null;
+  title?: string;
+  description?: string;
+  emailPlaceholder?: string;
+  buttonLabel?: string;
+  successMessage?: string;
+  successRedirectUrl?: string | null;
+  variant?: 'card' | 'inline' | 'footer';
+  idPrefix?: string;
+}
+
+const {
+  embedUrl,
+  listId,
+  title = 'Subscribe to our newsletter',
+  description = 'Get the latest articles delivered to your inbox.',
+  emailPlaceholder = 'Enter your email',
+  buttonLabel = 'Subscribe',
+  successMessage = 'Thanks for subscribing!',
+  successRedirectUrl,
+  variant = 'card',
+  idPrefix = 'nl',
+} = Astro.props;
+
+const useEmbed = Boolean(embedUrl?.trim());
+const inputId = `${idPrefix}-email`;
+---
+
+<div class:list={['newsletter', `newsletter--${variant}`]} data-newsletter>
+  <div class="newsletter__form-wrap">
+    {variant !== 'inline' && (
+      <>
+        <h3>{title}</h3>
+        <p>{description}</p>
+      </>
+    )}
+    {variant === 'inline' && <p class="newsletter__inline-title">{title}</p>}
+
+    {useEmbed ? (
+      <form action={embedUrl!.trim()} method="post" target="_blank" class="newsletter__form">
+        <label for={inputId} class="sr-only">Email</label>
+        <input id={inputId} name="EMAIL" type="email" required placeholder={emailPlaceholder} />
+        <button type="submit" class="btn btn--primary">{buttonLabel}</button>
+      </form>
+    ) : (
+      <form class="newsletter__form" data-nl-form data-list-id={listId || ''} data-redirect={successRedirectUrl || ''}>
+        <label for={inputId} class="sr-only">Email address</label>
+        <input id={inputId} type="email" required placeholder={emailPlaceholder} data-nl-email />
+        <button type="submit" class="btn btn--primary" data-nl-submit>{buttonLabel}</button>
+        <p class="newsletter__error" data-nl-error hidden></p>
+      </form>
+    )}
+  </div>
+  <div class="newsletter__success" data-nl-success hidden>
+    <p>{successMessage}</p>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLFormElement>('[data-nl-form]').forEach((form) => {
+    if (form.dataset.bound) return;
+    form.dataset.bound = 'true';
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const wrap = form.closest('[data-newsletter]');
+      const email = form.querySelector<HTMLInputElement>('[data-nl-email]')?.value.trim() || '';
+      const errorEl = form.querySelector<HTMLElement>('[data-nl-error]');
+      const submit = form.querySelector<HTMLButtonElement>('[data-nl-submit]');
+      if (!email || !wrap) return;
+      submit && (submit.disabled = true);
+      if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
+      try {
+        const res = await fetch('/api/newsletter/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            listIdOverride: form.dataset.listId || undefined,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (errorEl) {
+            errorEl.hidden = false;
+            errorEl.textContent = typeof data.error === 'string' ? data.error : 'Something went wrong.';
+          }
+          return;
+        }
+        const redirect = form.dataset.redirect?.trim();
+        if (redirect) { window.location.href = redirect; return; }
+        const formWrap = wrap.querySelector('.newsletter__form-wrap');
+        const success = wrap.querySelector('[data-nl-success]');
+        if (formWrap) (formWrap as HTMLElement).hidden = true;
+        if (success) (success as HTMLElement).hidden = false;
+      } catch {
+        if (errorEl) { errorEl.hidden = false; errorEl.textContent = 'Something went wrong. Please try again.'; }
+      } finally {
+        submit && (submit.disabled = false);
+      }
+    });
+  });
+</script>

@@ -13,38 +13,68 @@ export function JsonLd({ data }: JsonLdProps) {
   );
 }
 
+function isoDate(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
+}
+
+function absoluteAsset(
+  value: string | null | undefined,
+  siteUrl: string
+): string | undefined {
+  if (!value) return undefined;
+  if (/^https?:\/\//i.test(value)) return value;
+  try {
+    return new URL(value, `${siteUrl}/`).href;
+  } catch {
+    return undefined;
+  }
+}
+
 export function articleJsonLd(
   article: Article,
   settings: BlogSettings,
   siteUrl: string
 ) {
+  const datePublished = isoDate(article.published_at || article.created_at);
+  const dateModified = isoDate(article.updated_at) || datePublished;
+  const image = absoluteAsset(
+    article.featured_image || settings.default_og_image,
+    siteUrl
+  );
+  const logo = absoluteAsset(settings.logo_url, siteUrl);
   return {
     "@context": "https://schema.org",
-    "@type": "BlogPosting",
+    "@type": "NewsArticle",
     headline: article.headline,
-    description: article.excerpt,
-    image: article.featured_image || settings.default_og_image,
-    datePublished: article.published_at,
-    dateModified: article.updated_at,
+    description: article.excerpt || undefined,
+    image: image ? [image] : undefined,
+    datePublished,
+    dateModified,
     author: article.author
       ? {
           "@type": "Person",
           name: article.author.name,
           url: `${siteUrl}/authors/${article.author.slug}`,
         }
-      : undefined,
+      : {
+          "@type": "Organization",
+          name: settings.blog_name,
+          url: siteUrl,
+        },
     publisher: {
       "@type": "Organization",
       name: settings.blog_name,
-      logo: settings.logo_url
-        ? { "@type": "ImageObject", url: settings.logo_url }
-        : undefined,
+      url: siteUrl,
+      logo: logo ? { "@type": "ImageObject", url: logo } : undefined,
     },
     mainEntityOfPage: {
       "@type": "WebPage",
       "@id": `${siteUrl}/blog/${article.slug}`,
     },
-    wordCount: article.word_count,
+    wordCount: article.word_count || undefined,
   };
 }
 

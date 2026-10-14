@@ -1,0 +1,82 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { requireAuth } from '../../lib/auth';
+
+const authRedirect = requireAuth(Astro.request);
+if (authRedirect) return authRedirect;
+---
+
+<Admin title="Media Library" active="media">
+  <div class="admin-header">
+    <div>
+      <h1>Media Library</h1>
+      <p class="admin-sub" data-media-count></p>
+    </div>
+    <div>
+      <button type="button" class="btn btn--primary" data-media-upload>Upload images</button>
+      <input type="file" accept="image/*" multiple hidden data-media-files />
+    </div>
+  </div>
+  <p data-media-status style="color: var(--muted); font-size: 0.85rem;"></p>
+  <div class="media-grid" data-media-grid></div>
+</Admin>
+
+<script>
+  const grid = document.querySelector('[data-media-grid]');
+  const countEl = document.querySelector('[data-media-count]');
+  const status = document.querySelector('[data-media-status]');
+  const uploadBtn = document.querySelector('[data-media-upload]');
+  const filesInput = document.querySelector('[data-media-files]') as HTMLInputElement | null;
+
+  async function load() {
+    const res = await fetch('/api/admin/media');
+    if (!res.ok) { if (status) status.textContent = 'Could not load media.'; return; }
+    const images = await res.json();
+    if (countEl) countEl.textContent = `${images.length} image${images.length !== 1 ? 's' : ''}`;
+    if (!grid) return;
+    grid.innerHTML = images.map((img: { url: string; name: string; size?: number; path: string }) => `
+      <div class="media-item">
+        <img src="${img.url}" alt="${img.name}" />
+        <div class="media-item__meta">
+          <span>${img.name}</span>
+          <div>
+            <button type="button" class="btn btn--sm" data-copy="${img.url}">Copy URL</button>
+            <button type="button" class="btn btn--sm" data-del="${img.path}" style="color: var(--accent);">Delete</button>
+          </div>
+        </div>
+      </div>
+    `).join('') || '<p style="color:var(--muted)">No images yet.</p>';
+
+    grid.querySelectorAll('[data-copy]').forEach((b) => {
+      b.addEventListener('click', () => navigator.clipboard.writeText((b as HTMLElement).dataset.copy || ''));
+    });
+    grid.querySelectorAll('[data-del]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        if (!confirm('Delete this image?')) return;
+        await fetch('/api/admin/media', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: (b as HTMLElement).dataset.del }),
+        });
+        load();
+      });
+    });
+  }
+
+  uploadBtn?.addEventListener('click', () => filesInput?.click());
+  filesInput?.addEventListener('change', async () => {
+    const files = filesInput.files;
+    if (!files) return;
+    if (status) status.textContent = 'Uploading…';
+    for (const file of Array.from(files)) {
+      const fd = new FormData();
+      fd.append('file', file);
+      await fetch('/api/upload', { method: 'POST', body: fd });
+    }
+    filesInput.value = '';
+    if (status) status.textContent = '';
+    load();
+  });
+
+  load();
+</script>

@@ -1,0 +1,49 @@
+---
+import type { SiteSettings } from '../lib/types';
+import { getPopularArticles } from '../lib/data';
+import CTASidebar from './CTASidebar.astro';
+import NewsletterSignup from './NewsletterSignup.astro';
+import PopularArticles from './PopularArticles.astro';
+import SearchBar from './SearchBar.astro';
+
+interface Props {
+  settings: SiteSettings;
+  searchQuery?: string;
+}
+
+const { settings, searchQuery = '' } = Astro.props;
+const popular = await getPopularArticles(5);
+const showNewsletter =
+  settings.newsletter_enabled &&
+  (settings.newsletter_embed_url?.trim() || settings.newsletter_list_id?.trim());
+---
+
+<aside class="sidebar">
+  <div class="sidebar__sticky">
+    <SearchBar query={searchQuery} />
+    {settings.sidebar_cta_enabled && settings.sidebar_cta_title && (
+      <CTASidebar
+        title={settings.sidebar_cta_title}
+        description={settings.sidebar_cta_description ?? undefined}
+        buttonText={settings.sidebar_cta_button_text ?? undefined}
+        buttonUrl={settings.sidebar_cta_button_url ?? undefined}
+        imageUrl={settings.sidebar_cta_image_url ?? undefined}
+      />
+    )}
+
+    {showNewsletter && (
+      <NewsletterSignup
+        embedUrl={settings.newsletter_embed_url}
+        listId={settings.newsletter_list_id}
+        title="Stay updated"
+        description="Get new articles in your inbox."
+        successMessage={settings.newsletter_success_message}
+        successRedirectUrl={settings.newsletter_success_redirect_url}
+        variant="card"
+        idPrefix="sidebar-nl"
+      />
+    )}
+
+    <PopularArticles articles={popular} />
+  </div>
+</aside>

@@ -1,0 +1,47 @@
+---
+import Base from '../../layouts/Base.astro';
+import ArticleCard from '../../components/ArticleCard.astro';
+import Pagination from '../../components/Pagination.astro';
+import Sidebar from '../../components/Sidebar.astro';
+import { getPublishedArticles, getSiteSettings, hasTaggedArticles } from '../../lib/data';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import { publicPath } from '../../lib/utils';
+
+const hasTags = await hasTaggedArticles();
+if (!hasTags) return Astro.redirect('/404');
+
+const tag = decodeURIComponent(Astro.params.tag!);
+const settings = await getSiteSettings();
+const url = new URL(Astro.request.url);
+const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
+const perPage = settings.posts_per_page || 10;
+
+const { articles, total } = await getPublishedArticles({
+  tag,
+  limit: perPage,
+  offset: (page - 1) * perPage,
+});
+
+if (total === 0) return Astro.redirect('/404');
+const totalPages = Math.ceil(total / perPage);
+---
+
+<Base title={`#${tag}`} description={`Articles tagged with ${tag}`}>
+  <Breadcrumbs items={[{ label: 'Blog', href: publicPath('/') }, { label: `#${tag}` }]} />
+  <div class="listing-layout">
+    <div class="listing-main">
+      <p class="listing-meta">
+        Articles tagged with <span class="tag-pill">#{tag}</span>
+      </p>
+      <div class="article-grid">
+        {articles.map((article) => <ArticleCard article={article} />)}
+      </div>
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        basePath={publicPath(`/tag/${encodeURIComponent(tag)}`)}
+      />
+    </div>
+    <Sidebar settings={settings} />
+  </div>
+</Base>

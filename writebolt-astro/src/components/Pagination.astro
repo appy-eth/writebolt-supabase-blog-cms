@@ -1,0 +1,44 @@
+---
+import { generatePageNumbers, pageHref } from '../lib/utils';
+
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  basePath: string;
+}
+
+const { currentPage, totalPages, basePath } = Astro.props;
+const pages = generatePageNumbers(currentPage, totalPages);
+---
+
+{totalPages > 1 && (
+  <nav class="pagination" aria-label="Pagination">
+    <a
+      href={currentPage > 1 ? pageHref(basePath, currentPage - 1) : '#'}
+      class:list={['pagination__btn', { 'is-disabled': currentPage === 1 }]}
+      aria-disabled={currentPage === 1}
+    >
+      Previous
+    </a>
+    {pages.map((page) =>
+      page === '...' ? (
+        <span class="pagination__ellipsis" aria-hidden="true">…</span>
+      ) : (
+        <a
+          href={pageHref(basePath, page)}
+          class:list={['pagination__num', { 'is-active': currentPage === page }]}
+          aria-current={currentPage === page ? 'page' : undefined}
+        >
+          {page}
+        </a>
+      )
+    )}
+    <a
+      href={currentPage < totalPages ? pageHref(basePath, currentPage + 1) : '#'}
+      class:list={['pagination__btn', { 'is-disabled': currentPage === totalPages }]}
+      aria-disabled={currentPage === totalPages}
+    >
+      Next
+    </a>
+  </nav>
+)}
