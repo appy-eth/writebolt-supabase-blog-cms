@@ -31,6 +31,12 @@ Both installs use the same Astro app. The admin **View** links, sitemaps, RSS, a
 
 Use this when the blog should live at `/blog` on a website that already has its own pages.
 
+**Copy this prompt**
+
+```
+Install Writebolt Blog as an add-on on my existing site. Repo: https://github.com/appy-eth/writebolt-supabase-blog-cms — use writebolt-astro/, not the repo root. Serve articles at /blog (set BLOG_BASE_PATH=/blog and SITE_URL to my site). Layout: embedded. Proxy /blog to this app and strip the /blog prefix. Schema: writebolt-astro/supabase/001_initial_schema.sql. If you have Supabase access, add the tables. Otherwise tell me to copy and paste that SQL into the Supabase SQL editor. Then npm install, npm run setup, and npm run dev inside writebolt-astro/.
+```
+
 ### 1. Clone the Astro app
 
 ```bash
@@ -93,6 +99,12 @@ Google only reads `https://yoursite.com/robots.txt`. Add the blog’s news rules
 ## Standalone installation
 
 Use this when you are launching a blog or news site on its own domain.
+
+**Copy this prompt**
+
+```
+Install Writebolt Blog as a standalone site. Repo: https://github.com/appy-eth/writebolt-supabase-blog-cms — use writebolt-astro/, not the repo root. Leave BLOG_BASE_PATH empty so articles are at /{slug}. Schema: writebolt-astro/supabase/001_initial_schema.sql. If you have Supabase access, add the tables. Otherwise tell me to copy and paste that SQL into the Supabase SQL editor. Then npm install, npm run setup, and npm run dev inside writebolt-astro/.
+```
 
 ### 1. Clone the Astro app
 
@@ -212,6 +224,12 @@ Astro and Next.js use the same Supabase tables. Run `supabase/migrations/001_wri
 
 ### Standalone Next.js blog
 
+**Copy this prompt**
+
+```
+Install the Next.js Writebolt Blog from the repo root (not writebolt-astro/). Repo: https://github.com/appy-eth/writebolt-supabase-blog-cms. Articles are at /blog/{slug}. Schema: supabase/migrations/001_writebolt_blog_schema.sql. If you have Supabase access, add the tables. Otherwise tell me to copy and paste that SQL into the Supabase SQL editor. Then npm install, npm run setup, and npm run dev.
+```
+
 From the repository root (not `writebolt-astro/`):
 
 ```bash
@@ -235,6 +253,12 @@ Set `NEXT_PUBLIC_SITE_URL` in `.env.local` so sitemaps and JSON-LD use the publi
 
 ### Add the blog to an existing Next.js app
 
+**Copy this prompt**
+
+```
+Add Writebolt Blog to this Next.js app. Repo: https://github.com/appy-eth/writebolt-supabase-blog-cms (repo root, not writebolt-astro/). Copy the blog, admin, and API files in. Do not overwrite my Supabase client. layout_mode: embedded. Articles stay at /blog/{slug}. Schema: supabase/migrations/001_writebolt_blog_schema.sql. If you have Supabase access, add the tables. Otherwise tell me to copy and paste that SQL into the Supabase SQL editor. Add SETTINGS_ENCRYPTION_KEY to .env.local. Check that /blog loads.
+```
+
 ```bash
 npx writebolt-blog init
 ```
@@ -248,37 +272,6 @@ Requires Node.js 18+ and an existing Next.js project with Supabase configured in
 | Custom | Blog header with your branding and nav links | A blog subdomain |
 
 Switch layout in **Admin → Settings**. The admin article path is `/blog/{slug}` in every mode.
-
-<details>
-<summary><strong>Copy prompt for an AI coding agent (Next.js embed)</strong></summary>
-
-```
-Add the Writebolt Blog CMS to my existing Next.js + Supabase project.
-
-Source repo: https://github.com/appy-eth/writebolt-supabase-blog-cms
-
-Steps:
-1. Clone the repo to a temp directory.
-2. Copy these into my project (don't overwrite my existing supabase client/server files):
-   - app/blog/, app/authors/, app/admin/
-   - app/api/ai/, app/api/upload/, app/api/og/
-   - app/rss.xml/, app/sitemap.xml/, app/news-sitemap.xml/, app/robots.ts
-   - components/blog/, components/admin/, components/callouts/,
-     components/author/, components/seo/
-   - components/layout/blog-header.tsx, blog-nav.tsx, blog-footer.tsx,
-     blog-layout-provider.tsx, sidebar.tsx
-   - lib/ai/, lib/storage/, lib/mdx/
-   - lib/supabase/queries.ts (merge with existing if present)
-   - lib/utils/ and types/ (merge with existing if present)
-3. Run the SQL migrations from supabase/migrations/ against my Supabase
-   database using my SUPABASE_SERVICE_ROLE_KEY from .env.local.
-4. Set layout_mode to 'embedded' in the site_settings table.
-5. Add SETTINGS_ENCRYPTION_KEY to .env.local (generate: openssl rand -hex 32).
-6. Delete the temp directory.
-7. Verify /blog loads correctly.
-```
-
-</details>
 
 Scheduled posts use `scheduled_for` on `articles`. `.github/workflows/publish-drafts.yml` runs every 6 hours when `site_settings.scheduled_publishing_enabled` is on. It needs the same `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` secrets.
 
