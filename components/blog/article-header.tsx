@@ -20,9 +20,9 @@ export function ArticleHeader({
 
   return (
     <header className="mb-8">
-      {article.category && (
+      {article.categories && (
         <span className="mb-3 inline-block rounded-full bg-[#22C55E] px-3.5 py-1.5 text-xs font-bold text-white">
-          {article.category}
+          {article.categories.name}
         </span>
       )}
 

@@ -21,7 +21,7 @@ export async function generateMetadata({
   const settings = await getBlogSettings();
   const tag = decodeURIComponent(params.tag);
   return {
-    title: `#${tag} — ${settings.blog_name}`,
+    title: `#${tag} — ${settings.site_name}`,
     description: `Articles tagged with ${tag}`,
   };
 }
@@ -51,7 +51,7 @@ export default async function TagPage({
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {shouldShowPageBlogTitle(settings) && (
         <h1 className="mb-8 font-serif text-4xl font-bold text-[#111827] dark:text-gray-100">
-          {settings.blog_name}
+          {settings.site_name}
         </h1>
       )}
 

@@ -5,8 +5,8 @@ import { AuthorCard } from "@/components/author/author-card";
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getBlogSettings();
   return {
-    title: `Authors — ${settings.blog_name}`,
-    description: `Meet the authors of ${settings.blog_name}`,
+    title: `Authors — ${settings.site_name}`,
+    description: `Meet the authors of ${settings.site_name}`,
   };
 }
 
@@ -18,7 +18,7 @@ export default async function AuthorsPage() {
     <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
       <h1 className="text-3xl font-bold text-[#111827]">Authors</h1>
       <p className="mt-2 text-[#6B7280]">
-        Meet the people behind {settings.blog_name}.
+        Meet the people behind {settings.site_name}.
       </p>
 
       {authors.length === 0 ? (

@@ -1,19 +1,31 @@
 import { createClient } from "./server";
 import type { Article, Author, BlogSettings, Category } from "@/types";
 
+const ARTICLE_SELECT = "*, author:authors(*), categories(id, name, slug)";
+
+export function mapArticle(row: Record<string, unknown>): Article {
+  const joined = row.categories as Article["categories"] | NonNullable<Article["categories"]>[] | null;
+  return {
+    ...(row as unknown as Article),
+    categories: Array.isArray(joined) ? (joined[0] ?? null) : joined ?? null,
+  };
+}
+
 export async function getBlogSettings(): Promise<BlogSettings> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from("blog_settings")
+    .from("site_settings")
     .select("*")
     .single();
 
   if (error || !data) {
     return {
       id: "",
-      blog_name: "My Blog",
-      blog_description:
+      site_name: "My Blog",
+      site_description:
         "A short tagline for your site. Used in the header, default meta description, and social previews.",
+      blog_page_heading: null,
+      show_featured_categories: false,
       logo_url: null,
       favicon_url: null,
       layout_mode: "standalone",
@@ -45,7 +57,7 @@ export async function getBlogSettings(): Promise<BlogSettings> {
       newsletter_success_message: "Thanks for subscribing!",
       newsletter_success_redirect_url: null,
       newsletter_embed_url: null,
-      site_title_template: "{title} | {blog_name}",
+      site_title_template: "{title} | {site_name}",
       default_og_image: null,
       google_analytics_id: null,
       social_twitter: null,
@@ -56,6 +68,7 @@ export async function getBlogSettings(): Promise<BlogSettings> {
       image_storage_provider: "local",
       supabase_storage_bucket: "blog-images",
       scheduled_publishing_enabled: true,
+      writebolt_ads_site_id: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -67,7 +80,7 @@ export async function getBlogSettings(): Promise<BlogSettings> {
 export async function getPublishedArticles(options?: {
   limit?: number;
   offset?: number;
-  category?: string;
+  categoryId?: string;
   tag?: string;
   search?: string;
 }): Promise<{ articles: Article[]; total: number }> {
@@ -78,12 +91,12 @@ export async function getPublishedArticles(options?: {
   // Only published articles (excludes draft + archived)
   let query = supabase
     .from("articles")
-    .select("*, author:authors(*)", { count: "exact" })
+    .select("*, author:authors(*), categories(id, name, slug)", { count: "exact" })
     .eq("status", "published")
     .order("published_at", { ascending: false });
 
-  if (options?.category) {
-    query = query.eq("category", options.category);
+  if (options?.categoryId) {
+    query = query.eq("category_id", options.categoryId);
   }
 
   if (options?.tag) {
@@ -103,7 +116,10 @@ export async function getPublishedArticles(options?: {
     return { articles: [], total: 0 };
   }
 
-  return { articles: (data ?? []) as Article[], total: count ?? 0 };
+  return {
+    articles: (data ?? []).map((row) => mapArticle(row as Record<string, unknown>)),
+    total: count ?? 0,
+  };
 }
 
 export async function getArticleBySlug(
@@ -112,13 +128,13 @@ export async function getArticleBySlug(
   const supabase = createClient();
   const { data, error } = await supabase
     .from("articles")
-    .select("*, author:authors(*)")
+    .select(ARTICLE_SELECT)
     .eq("slug", slug)
     .eq("status", "published")
     .single();
 
   if (error || !data) return null;
-  return data as Article;
+  return mapArticle(data as Record<string, unknown>);
 }
 
 export async function getRelatedArticles(
@@ -129,30 +145,32 @@ export async function getRelatedArticles(
 
   let query = supabase
     .from("articles")
-    .select("*, author:authors(*)")
+    .select(ARTICLE_SELECT)
     .eq("status", "published")
     .neq("id", article.id)
     .order("published_at", { ascending: false })
     .limit(limit);
 
-  if (article.category) {
-    query = query.eq("category", article.category);
+  if (article.category_id) {
+    query = query.eq("category_id", article.category_id);
   }
 
   const { data } = await query;
 
-  if (data && data.length > 0) return data as Article[];
+  if (data && data.length > 0) {
+    return data.map((row) => mapArticle(row as Record<string, unknown>));
+  }
 
   // Fallback: latest articles if no category match
   const { data: fallback } = await supabase
     .from("articles")
-    .select("*, author:authors(*)")
+    .select(ARTICLE_SELECT)
     .eq("status", "published")
     .neq("id", article.id)
     .order("published_at", { ascending: false })
     .limit(limit);
 
-  return (fallback ?? []) as Article[];
+  return (fallback ?? []).map((row) => mapArticle(row as Record<string, unknown>));
 }
 
 export async function getPopularArticles(limit = 5): Promise<Article[]> {
@@ -160,13 +178,13 @@ export async function getPopularArticles(limit = 5): Promise<Article[]> {
   // MVP: use reading_time_minutes as proxy for depth, fall back to most recent
   const { data } = await supabase
     .from("articles")
-    .select("*, author:authors(*)")
+    .select(ARTICLE_SELECT)
     .eq("status", "published")
     .order("reading_time_minutes", { ascending: false, nullsFirst: false })
     .order("published_at", { ascending: false })
     .limit(limit);
 
-  return (data ?? []) as Article[];
+  return (data ?? []).map((row) => mapArticle(row as Record<string, unknown>));
 }
 
 export async function getAuthors(): Promise<Author[]> {
@@ -201,13 +219,13 @@ export async function getAuthorArticles(
   const supabase = createClient();
   const { data } = await supabase
     .from("articles")
-    .select("*, author:authors(*)")
+    .select(ARTICLE_SELECT)
     .eq("author_id", authorId)
     .eq("status", "published")
     .order("published_at", { ascending: false })
     .limit(limit);
 
-  return (data ?? []) as Article[];
+  return (data ?? []).map((row) => mapArticle(row as Record<string, unknown>));
 }
 
 export async function getCategories(): Promise<Category[]> {
@@ -215,7 +233,7 @@ export async function getCategories(): Promise<Category[]> {
   const { data } = await supabase
     .from("categories")
     .select("*")
-    .order("display_order");
+    .order("sort_order");
 
   return (data ?? []) as Category[];
 }
@@ -248,7 +266,7 @@ export async function getFeaturedCategoryArticles(): Promise<
     .from("categories")
     .select("*")
     .eq("home_page_featured", true)
-    .order("display_order");
+    .order("sort_order");
 
   if (!cats || cats.length === 0) return [];
 
@@ -256,12 +274,15 @@ export async function getFeaturedCategoryArticles(): Promise<
     (cats as Category[]).map(async (cat) => {
       const { data: articles } = await supabase
         .from("articles")
-        .select("*, author:authors(*)")
+        .select(ARTICLE_SELECT)
         .eq("status", "published")
-        .eq("category", cat.slug)
+        .eq("category_id", cat.id)
         .order("published_at", { ascending: false })
         .limit(3);
-      return { category: cat, articles: (articles ?? []) as Article[] };
+      return {
+        category: cat,
+        articles: (articles ?? []).map((row) => mapArticle(row as Record<string, unknown>)),
+      };
     })
   );
 

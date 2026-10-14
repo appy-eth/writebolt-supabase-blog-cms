@@ -7,20 +7,20 @@ interface ArticleFooterProps {
 export function ArticleFooter({ article }: ArticleFooterProps) {
   const hasTags = article.tags && article.tags.length > 0;
 
-  if (!hasTags && !article.category) return null;
+  if (!hasTags && !article.categories) return null;
 
   return (
     <footer className="mt-12 border-t border-gray-200 pt-6 dark:border-gray-800">
-      {article.category && (
+      {article.categories && (
         <div className="mb-4">
           <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
             Filed under:{" "}
           </span>
           <a
-            href={`/blog/category/${article.category}`}
+            href={`/blog/category/${article.categories.slug}`}
             className="text-sm font-medium text-[#2563EB] hover:underline"
           >
-            {article.category}
+            {article.categories.name}
           </a>
         </div>
       )}

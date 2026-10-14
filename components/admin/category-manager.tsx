@@ -39,7 +39,7 @@ export function CategoryManager() {
         name: newCat.name,
         slug,
         description: newCat.description || null,
-        display_order: categories.length,
+        sort_order: categories.length,
       }),
     });
     if (res.ok) {

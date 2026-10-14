@@ -1,8 +1,20 @@
 import { createServiceRoleClient } from "./service";
+import { mapArticle } from "./queries";
 import type { Article, BlogSettings, Category, NavItem } from "@/types";
+
+const ARTICLE_SELECT = "*, author:authors(*), categories(id, name, slug)";
 
 function db() {
   return createServiceRoleClient();
+}
+
+function writableArticle(article: Partial<Article>): Record<string, unknown> {
+  const row = { ...article } as Record<string, unknown>;
+  delete row.author;
+  delete row.categories;
+  delete row.fts;
+  delete row.id;
+  return row;
 }
 
 // ── Articles ───────────────────────────────────────────────
@@ -11,31 +23,31 @@ export async function getAllArticles(
   statusFilter?: string
 ): Promise<Article[]> {
   const supabase = db();
-  let q = supabase.from("articles").select("*, author:authors(*)");
+  let q = supabase.from("articles").select(ARTICLE_SELECT);
 
   if (statusFilter && statusFilter !== "all") {
     q = q.eq("status", statusFilter);
   }
 
   if (statusFilter === "scheduled") {
-    q = q.order("scheduled_date", { ascending: true, nullsFirst: false });
+    q = q.order("scheduled_for", { ascending: true, nullsFirst: false });
   } else {
     q = q.order("updated_at", { ascending: false });
   }
 
   const { data } = await q;
-  return (data ?? []) as Article[];
+  return (data ?? []).map((row) => mapArticle(row as Record<string, unknown>));
 }
 
 export async function getArticleById(id: string): Promise<Article | null> {
   const supabase = db();
   const { data } = await supabase
     .from("articles")
-    .select("*, author:authors(*)")
+    .select(ARTICLE_SELECT)
     .eq("id", id)
     .single();
 
-  return (data as Article) ?? null;
+  return data ? mapArticle(data as Record<string, unknown>) : null;
 }
 
 export async function createArticle(
@@ -44,15 +56,15 @@ export async function createArticle(
   const supabase = db();
   const { data, error } = await supabase
     .from("articles")
-    .insert(article)
-    .select("*, author:authors(*)")
+    .insert(writableArticle(article))
+    .select(ARTICLE_SELECT)
     .single();
 
   if (error) {
     console.error("Error creating article:", error);
     return null;
   }
-  return data as Article;
+  return data ? mapArticle(data as Record<string, unknown>) : null;
 }
 
 export async function updateArticle(
@@ -61,21 +73,19 @@ export async function updateArticle(
 ): Promise<Article | null> {
   const supabase = db();
   // Strip the joined author field and the fts generated column — neither can be written directly
-  const safeUpdates = { ...updates } as Record<string, unknown>;
-  delete safeUpdates.author;
-  delete safeUpdates.fts;
+  const safeUpdates = writableArticle(updates);
   const { data, error } = await supabase
     .from("articles")
     .update(safeUpdates)
     .eq("id", id)
-    .select("*, author:authors(*)")
+    .select(ARTICLE_SELECT)
     .single();
 
   if (error) {
     console.error("Error updating article:", error);
     return null;
   }
-  return data as Article;
+  return data ? mapArticle(data as Record<string, unknown>) : null;
 }
 
 export async function deleteArticle(id: string): Promise<boolean> {
@@ -124,17 +134,6 @@ export async function updateCategory(
 
 export async function deleteCategory(id: string): Promise<boolean> {
   const supabase = db();
-  const cat = await supabase
-    .from("categories")
-    .select("slug")
-    .eq("id", id)
-    .single();
-  if (cat.data) {
-    await supabase
-      .from("articles")
-      .update({ category: null })
-      .eq("category", cat.data.slug);
-  }
   const { error } = await supabase.from("categories").delete().eq("id", id);
   return !error;
 }
@@ -146,7 +145,7 @@ export async function reorderCategories(
   const updates = orderedIds.map((id, index) =>
     supabase
       .from("categories")
-      .update({ display_order: index })
+      .update({ sort_order: index })
       .eq("id", id)
   );
   const results = await Promise.all(updates);
@@ -160,14 +159,14 @@ export async function updateBlogSettings(
 ): Promise<BlogSettings | null> {
   const supabase = db();
   const { data: existing } = await supabase
-    .from("blog_settings")
+    .from("site_settings")
     .select("id")
     .single();
 
   if (!existing) return null;
 
   const { data, error } = await supabase
-    .from("blog_settings")
+    .from("site_settings")
     .update(updates)
     .eq("id", existing.id)
     .select()

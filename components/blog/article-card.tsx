@@ -46,9 +46,9 @@ export function ArticleCard({ article }: ArticleCardProps) {
           </div>
         )}
 
-        {article.category && (
+        {article.categories && (
           <span className="absolute left-3 top-3 rounded-full bg-[#22C55E] px-3.5 py-1.5 text-xs font-bold text-white">
-            {article.category}
+            {article.categories.name}
           </span>
         )}
       </div>

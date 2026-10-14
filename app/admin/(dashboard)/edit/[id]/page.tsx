@@ -102,7 +102,7 @@ export default function EditArticlePage() {
     await patchBody({
       status: "draft",
       published_at: null,
-      scheduled_date: null,
+      scheduled_for: null,
     });
   }
 
@@ -110,14 +110,14 @@ export default function EditArticlePage() {
     await patchBody({
       status: "published",
       published_at: new Date().toISOString(),
-      scheduled_date: null,
+      scheduled_for: null,
     });
   }
 
   async function onSchedule(iso: string) {
     await patchBody({
       status: "scheduled",
-      scheduled_date: iso,
+      scheduled_for: iso,
       published_at: null,
     });
   }
@@ -125,7 +125,7 @@ export default function EditArticlePage() {
   async function onArchive() {
     await patchBody({
       status: "archived",
-      scheduled_date: null,
+      scheduled_for: null,
     });
   }
 
@@ -139,7 +139,7 @@ export default function EditArticlePage() {
       await patchBody({
         status: "published",
         published_at: article.published_at ?? new Date().toISOString(),
-        scheduled_date: null,
+        scheduled_for: null,
       });
       return;
     }

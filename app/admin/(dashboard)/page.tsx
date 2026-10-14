@@ -188,17 +188,17 @@ export default function AdminDashboard() {
                     <div className="flex flex-col gap-0.5">
                       <StatusBadge status={article.status} />
                       {article.status === "scheduled" &&
-                        article.scheduled_date && (
+                        article.scheduled_for && (
                           <span className="text-xs text-gray-500">
-                            {new Date(article.scheduled_date).toLocaleString()}
+                            {new Date(article.scheduled_for).toLocaleString()}
                           </span>
                         )}
                     </div>
                   </td>
                   <td className="hidden px-6 py-4 md:table-cell">
-                    {article.category ? (
+                    {article.categories ? (
                       <span className="text-sm text-gray-600">
-                        {article.category}
+                        {article.categories.name}
                       </span>
                     ) : (
                       <span className="text-sm text-gray-400">—</span>

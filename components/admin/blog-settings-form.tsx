@@ -46,15 +46,15 @@ export function BlogSettingsForm({ initialSettings }: BlogSettingsFormProps) {
         <Field label="Blog Name">
           <input
             type="text"
-            value={settings.blog_name}
-            onChange={(e) => update({ blog_name: e.target.value })}
+            value={settings.site_name}
+            onChange={(e) => update({ site_name: e.target.value })}
             className="input"
           />
         </Field>
         <Field label="Description">
           <textarea
-            value={settings.blog_description}
-            onChange={(e) => update({ blog_description: e.target.value })}
+            value={settings.site_description}
+            onChange={(e) => update({ site_description: e.target.value })}
             rows={2}
             className="input resize-none"
           />
@@ -63,6 +63,24 @@ export function BlogSettingsForm({ initialSettings }: BlogSettingsFormProps) {
             description and in social previews when an article doesn&apos;t set
             its own.
           </p>
+        </Field>
+        <Field label="Homepage heading">
+          <input
+            type="text"
+            value={settings.blog_page_heading ?? ""}
+            onChange={(e) => update({ blog_page_heading: e.target.value || null })}
+            placeholder={settings.site_name}
+            className="input"
+          />
+        </Field>
+        <Field label="Writebolt ads site ID">
+          <input
+            type="text"
+            value={settings.writebolt_ads_site_id ?? ""}
+            onChange={(e) => update({ writebolt_ads_site_id: e.target.value || null })}
+            placeholder="from writebolt.app"
+            className="input"
+          />
         </Field>
         <SiteAssetField
           label="Logo URL"
@@ -115,6 +133,11 @@ export function BlogSettingsForm({ initialSettings }: BlogSettingsFormProps) {
           label="Show blog heading above articles"
           checked={settings.show_blog_title}
           onChange={(v) => update({ show_blog_title: v })}
+        />
+        <Checkbox
+          label="Show featured category sections under the homepage listing"
+          checked={settings.show_featured_categories}
+          onChange={(v) => update({ show_featured_categories: v })}
         />
         <Checkbox
           label="Show reading time on articles"
@@ -482,11 +505,11 @@ export function BlogSettingsForm({ initialSettings }: BlogSettingsFormProps) {
             onChange={(e) =>
               update({ site_title_template: e.target.value })
             }
-            placeholder="{title} | {blog_name}"
+            placeholder="{title} | {site_name}"
             className="input"
           />
           <p className="mt-1 text-xs text-gray-500">
-            Use {"{title}"} and {"{blog_name}"} as placeholders
+            Use {"{title}"} and {"{site_name}"} as placeholders
           </p>
         </Field>
         <Field label="Default OG Image">

@@ -113,15 +113,15 @@ export function FrontmatterEditor({
           Category
         </label>
         <select
-          value={article.category ?? ""}
+          value={article.category_id ?? ""}
           onChange={(e) =>
-            onChange({ category: e.target.value || null })
+            onChange({ category_id: e.target.value || null })
           }
           className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm shadow-sm focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none"
         >
           <option value="">No category</option>
           {categories.map((cat) => (
-            <option key={cat.id} value={cat.slug}>
+            <option key={cat.id} value={cat.id}>
               {cat.name}
             </option>
           ))}
@@ -198,9 +198,9 @@ export function FrontmatterEditor({
         </label>
         <p className="mt-1 text-sm capitalize text-gray-700">
           {article.status ?? "draft"}
-          {article.status === "scheduled" && article.scheduled_date ? (
+          {article.status === "scheduled" && article.scheduled_for ? (
             <span className="ml-2 font-normal text-gray-500">
-              — {new Date(article.scheduled_date).toLocaleString()}
+              — {new Date(article.scheduled_for).toLocaleString()}
             </span>
           ) : null}
           {article.status === "published" && article.published_at ? (

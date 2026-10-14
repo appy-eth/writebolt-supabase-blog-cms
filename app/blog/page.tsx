@@ -55,7 +55,7 @@ export default async function BlogPage({
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {showPageTitle && (
           <h1 className="mb-6 font-serif text-4xl font-bold text-gray-900 dark:text-gray-100">
-            {settings.blog_name}
+            {settings.blog_page_heading?.trim() || settings.site_name}
           </h1>
         )}
 
@@ -128,6 +128,7 @@ export default async function BlogPage({
             />
 
             {!isSearching &&
+              settings.show_featured_categories &&
               featuredCategoryArticles.map(({ category, articles }) => (
                 <section key={category.id} className="mt-16">
                   <div className="mb-6 flex items-center justify-between">

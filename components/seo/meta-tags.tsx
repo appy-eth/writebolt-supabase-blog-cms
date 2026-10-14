@@ -9,7 +9,8 @@ export function generateArticleMetadata(
   const description = article.seo_description || article.excerpt || "";
   const formattedTitle = settings.site_title_template
     .replace("{title}", title)
-    .replace("{blog_name}", settings.blog_name);
+    .replace("{site_name}", settings.site_name)
+    .replace("{blog_name}", settings.site_name);
 
   return {
     title: formattedTitle,
@@ -37,11 +38,11 @@ export function generateArticleMetadata(
 
 export function generateBlogMetadata(settings: BlogSettings): Metadata {
   return {
-    title: settings.blog_name,
-    description: settings.blog_description,
+    title: settings.site_name,
+    description: settings.site_description,
     openGraph: {
-      title: settings.blog_name,
-      description: settings.blog_description,
+      title: settings.site_name,
+      description: settings.site_description,
       type: "website",
       images: settings.default_og_image
         ? [{ url: settings.default_og_image }]

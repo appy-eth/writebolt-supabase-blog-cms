@@ -45,10 +45,8 @@ npm install
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Open **SQL Editor → New query**.
-3. Paste and run `writebolt-astro/supabase/001_initial_schema.sql`.
-4. If this database already has an older Astro schema, also run `writebolt-astro/supabase/002_feature_parity.sql`.
-
-Do not run the Next.js migration (`supabase/migrations/`) against this app. The two templates use different tables.
+3. Paste and run `writebolt-astro/supabase/001_initial_schema.sql`. The same file is `supabase/migrations/001_writebolt_blog_schema.sql`. Either copy is the shared schema.
+4. If this database already has an older Astro schema, also run `writebolt-astro/supabase/002_feature_parity.sql`. If it was created from the old Next.js schema (`blog_settings`), run `supabase/migrations/002_align_astro_schema.sql` instead.
 
 ### 3. Configure environment
 
@@ -107,7 +105,7 @@ npm install
 ### 2. Create the database
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. In **SQL Editor**, run `writebolt-astro/supabase/001_initial_schema.sql`.
+2. In **SQL Editor**, run `writebolt-astro/supabase/001_initial_schema.sql` (the same SQL as `supabase/migrations/001_writebolt_blog_schema.sql`).
 3. If you already applied an older Astro schema, also run `writebolt-astro/supabase/002_feature_parity.sql`.
 
 ### 3. Configure environment
@@ -210,7 +208,7 @@ writebolt-astro/
 
 The repository root is the same CMS in Next.js 14. Use it when you need React and MDX, or when the site you are adding the blog to is already Next.js. Public articles are always at `/blog/{slug}`.
 
-The Astro and Next.js templates do **not** share a database schema. Run only the migration that matches the app you deploy.
+Astro and Next.js use the same Supabase tables. Run `supabase/migrations/001_writebolt_blog_schema.sql` once. If this database was created from the older Next.js migration, run `supabase/migrations/002_align_astro_schema.sql` as well.
 
 ### Standalone Next.js blog
 
@@ -220,7 +218,7 @@ From the repository root (not `writebolt-astro/`):
 npm install
 ```
 
-1. In the Supabase SQL Editor, run `supabase/migrations/001_writebolt_blog_schema.sql`.
+1. In the Supabase SQL Editor, run `supabase/migrations/001_writebolt_blog_schema.sql`. If you already ran an older copy of that file, also run `supabase/migrations/002_align_astro_schema.sql`.
 2. Run the setup wizard. It writes `.env.local`.
 
 ```bash
@@ -274,7 +272,7 @@ Steps:
    - lib/utils/ and types/ (merge with existing if present)
 3. Run the SQL migrations from supabase/migrations/ against my Supabase
    database using my SUPABASE_SERVICE_ROLE_KEY from .env.local.
-4. Set layout_mode to 'embedded' in the blog_settings table.
+4. Set layout_mode to 'embedded' in the site_settings table.
 5. Add SETTINGS_ENCRYPTION_KEY to .env.local (generate: openssl rand -hex 32).
 6. Delete the temp directory.
 7. Verify /blog loads correctly.
@@ -282,7 +280,7 @@ Steps:
 
 </details>
 
-Scheduled posts in the Next.js app use `scheduled_date`. `.github/workflows/publish-drafts.yml` runs every 6 hours when `blog_settings.scheduled_publishing_enabled` is on. It needs the same `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` secrets.
+Scheduled posts use `scheduled_for` on `articles`. `.github/workflows/publish-drafts.yml` runs every 6 hours when `site_settings.scheduled_publishing_enabled` is on. It needs the same `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` secrets.
 
 Next.js environment variables live in `.env.local`. See `.env.example`.
 

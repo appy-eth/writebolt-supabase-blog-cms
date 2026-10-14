@@ -87,7 +87,8 @@ async function wizardMode(): Promise<void> {
   console.log(
     "Have your Supabase project URL and keys ready (Settings → API on supabase.com).\n\n" +
       "Important: apply the SQL migration in Supabase **before** seed can succeed:\n" +
-      "  Open Supabase → SQL Editor → paste and run `supabase/migrations/001_writebolt_blog_schema.sql`\n"
+      "  Open Supabase → SQL Editor → paste and run `supabase/migrations/001_writebolt_blog_schema.sql`\n" +
+      "  Already on the old Next.js schema? Also run `supabase/migrations/002_align_astro_schema.sql`\n"
   );
 
   if (fs.existsSync(envPath)) {

@@ -1,6 +1,7 @@
 -- Upgrade path for Astro DBs created from the original slim schema.
 -- Safe to run after 001_initial_schema.sql. New installs can skip this.
 
+alter table public.authors add column if not exists user_id uuid references auth.users (id) on delete set null;
 alter table public.authors add column if not exists website_url text;
 alter table public.authors add column if not exists twitter_handle text;
 alter table public.authors add column if not exists linkedin_url text;
@@ -12,6 +13,7 @@ alter table public.categories add column if not exists description text;
 alter table public.categories add column if not exists article_count integer not null default 0;
 alter table public.categories add column if not exists home_page_featured boolean not null default false;
 
+alter table public.articles add column if not exists content_html text;
 alter table public.articles add column if not exists featured_image_alt text;
 alter table public.articles add column if not exists tags text[] not null default '{}';
 alter table public.articles add column if not exists word_count integer;

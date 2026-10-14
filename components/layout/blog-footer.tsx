@@ -35,7 +35,7 @@ export function BlogFooter({ settings }: BlogFooterProps) {
 
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            &copy; {new Date().getFullYear()} {settings.blog_name}. All
+            &copy; {new Date().getFullYear()} {settings.site_name}. All
             rights reserved.
           </p>
 

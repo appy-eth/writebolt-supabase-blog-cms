@@ -1,11 +1,13 @@
--- Writebolt Blog — Astro edition (full feature schema)
+-- Writebolt Blog — shared schema (Astro and Next.js).
 -- Run this in your Supabase SQL editor. Safe to re-run: uses IF NOT EXISTS.
+-- Keep in sync with supabase/migrations/001_writebolt_blog_schema.sql.
 
 create extension if not exists "pgcrypto";
 
 -- ── Authors ─────────────────────────────────────────────────
 create table if not exists public.authors (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users (id) on delete set null,
   name text not null,
   slug text not null unique,
   bio text default '',
@@ -39,6 +41,7 @@ create table if not exists public.articles (
   headline text not null,
   slug text not null unique,
   content_markdown text default '',
+  content_html text,
   excerpt text default '',
   featured_image text default '',
   featured_image_alt text,
@@ -188,3 +191,14 @@ create policy "Public read site_settings" on public.site_settings for select usi
 create policy "Public read nav_items" on public.nav_items for select using (is_visible = true);
 
 -- Writes use the service-role client, which bypasses RLS. ai_settings has no public policy.
+
+-- Optional local cache for Writebolt Pro. Ideas and Link Pro live on the Pro API.
+create table if not exists public.writebolt_pro_ideas (
+  id text primary key,
+  headline text not null,
+  description text,
+  story_type text,
+  delivered_on date,
+  raw jsonb default '{}',
+  updated_at timestamptz not null default now()
+);

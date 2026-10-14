@@ -32,7 +32,7 @@ export async function GET() {
     <loc>${xmlEscape(loc)}</loc>
     <news:news>
       <news:publication>
-        <news:name>${xmlEscape(settings.blog_name)}</news:name>
+        <news:name>${xmlEscape(settings.site_name)}</news:name>
         <news:language>${xmlEscape(language)}</news:language>
       </news:publication>
       <news:publication_date>${published}</news:publication_date>

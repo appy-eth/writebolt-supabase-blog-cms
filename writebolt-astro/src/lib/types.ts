@@ -1,5 +1,6 @@
 export interface Author {
   id: string;
+  user_id?: string | null;
   name: string;
   slug: string;
   bio: string | null;
@@ -31,6 +32,7 @@ export interface Article {
   headline: string;
   slug: string;
   content_markdown: string | null;
+  content_html?: string | null;
   excerpt: string | null;
   featured_image: string | null;
   featured_image_alt: string | null;

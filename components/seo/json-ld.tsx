@@ -61,12 +61,12 @@ export function articleJsonLd(
         }
       : {
           "@type": "Organization",
-          name: settings.blog_name,
+          name: settings.site_name,
           url: siteUrl,
         },
     publisher: {
       "@type": "Organization",
-      name: settings.blog_name,
+      name: settings.site_name,
       url: siteUrl,
       logo: logo ? { "@type": "ImageObject", url: logo } : undefined,
     },
@@ -82,12 +82,12 @@ export function blogJsonLd(settings: BlogSettings, siteUrl: string) {
   return {
     "@context": "https://schema.org",
     "@type": "Blog",
-    name: settings.blog_name,
-    description: settings.blog_description,
+    name: settings.site_name,
+    description: settings.site_description,
     url: `${siteUrl}/blog`,
     publisher: {
       "@type": "Organization",
-      name: settings.blog_name,
+      name: settings.site_name,
       logo: settings.logo_url
         ? { "@type": "ImageObject", url: settings.logo_url }
         : undefined,

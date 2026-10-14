@@ -22,7 +22,7 @@ export async function generateMetadata({
   const settings = await getBlogSettings();
   const categoryName = decodeURIComponent(params.category);
   return {
-    title: `${categoryName} — ${settings.blog_name}`,
+    title: `${categoryName} — ${settings.site_name}`,
     description: `Articles in the ${categoryName} category`,
   };
 }
@@ -40,7 +40,7 @@ export default async function CategoryPage({
   if (!category) notFound();
 
   const { articles, total } = await getPublishedArticles({
-    category: categorySlug,
+    categoryId: category.id,
     limit: settings.posts_per_page,
     offset: (page - 1) * settings.posts_per_page,
   });

@@ -19,12 +19,12 @@ export function BlogHeader({ settings, categories }: BlogHeaderProps) {
             {settings.logo_url && (
               <img
                 src={settings.logo_url}
-                alt={settings.blog_name}
+                alt={settings.site_name}
                 className="h-8 w-auto"
               />
             )}
             <span className="font-serif text-xl font-bold text-gray-900 dark:text-gray-100">
-              {settings.blog_name}
+              {settings.site_name}
             </span>
           </a>
           <BlogNav categories={categories} />

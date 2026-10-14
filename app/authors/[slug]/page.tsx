@@ -21,7 +21,7 @@ export async function generateMetadata({
 
   const settings = await getBlogSettings();
   return {
-    title: `${author.name} — ${settings.blog_name}`,
+    title: `${author.name} — ${settings.site_name}`,
     description: author.bio || `Articles by ${author.name}`,
   };
 }

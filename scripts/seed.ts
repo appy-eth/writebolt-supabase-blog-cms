@@ -66,24 +66,24 @@ export async function seed(): Promise<void> {
   }
 
   const { data: settingsRow } = await supabase
-    .from("blog_settings")
+    .from("site_settings")
     .select("id")
     .limit(1);
 
   if (settingsRow && settingsRow.length > 0) {
-    console.log("blog_settings already exists — skipping.");
+    console.log("site_settings already exists — skipping.");
   } else {
-    const { error: sErr } = await supabase.from("blog_settings").insert({
-      blog_name: "My Blog",
-      blog_description:
+    const { error: sErr } = await supabase.from("site_settings").insert({
+      site_name: "My Blog",
+      site_description:
         "A short tagline for your site. Edit this in Admin → Settings.",
       default_author_id: authorId,
     });
 
     if (sErr) {
-      throw new Error(`Failed to insert blog_settings: ${sErr.message}`);
+      throw new Error(`Failed to insert site_settings: ${sErr.message}`);
     }
-    console.log("✅ Created default blog_settings row.");
+    console.log("✅ Created default site_settings row.");
   }
 
   const { count: catCount } = await supabase
@@ -96,19 +96,19 @@ export async function seed(): Promise<void> {
         name: "Getting Started",
         slug: "getting-started",
         description: null,
-        display_order: 0,
+        sort_order: 0,
       },
       {
         name: "Monetization",
         slug: "monetization",
         description: null,
-        display_order: 1,
+        sort_order: 1,
       },
       {
         name: "Writebolt",
         slug: "writebolt",
         description: null,
-        display_order: 2,
+        sort_order: 2,
       },
     ]);
     console.log("✅ Created default categories.");
@@ -254,6 +254,10 @@ Writebolt offers 3 free articles to start. No credit card required.
     },
   ];
 
+  const { data: categoryRows } = await supabase.from("categories").select("id, slug");
+  const categoryId = (slug: string) =>
+    categoryRows?.find((c) => c.slug === slug)?.id ?? null;
+
   const rows = samples.map((s) => {
     const { word_count, reading_time_minutes } = wordStats(s.content_markdown);
     return {
@@ -262,7 +266,7 @@ Writebolt offers 3 free articles to start. No credit card required.
       headline: s.headline,
       excerpt: s.excerpt,
       content_markdown: s.content_markdown,
-      category: s.category,
+      category_id: categoryId(s.category),
       tags: [] as string[],
       featured_image: s.featured_image,
       featured_image_alt: s.featured_image_alt,
@@ -270,7 +274,7 @@ Writebolt offers 3 free articles to start. No credit card required.
       seo_description: null,
       status: "published" as const,
       published_at: s.published_at,
-      scheduled_date: null,
+      scheduled_for: null,
       word_count,
       reading_time_minutes,
     };

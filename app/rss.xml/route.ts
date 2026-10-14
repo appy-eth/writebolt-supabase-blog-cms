@@ -16,7 +16,7 @@ export async function GET() {
       <guid isPermaLink="true">${siteUrl}/blog/${article.slug}</guid>
       <description><![CDATA[${article.excerpt || ""}]]></description>
       <pubDate>${new Date(article.published_at || article.created_at).toUTCString()}</pubDate>
-      ${article.category ? `<category>${article.category}</category>` : ""}
+      ${article.categories ? `<category>${article.categories.name}</category>` : ""}
       ${article.author ? `<dc:creator><![CDATA[${article.author.name}]]></dc:creator>` : ""}
     </item>`
     )
@@ -27,8 +27,8 @@ export async function GET() {
   xmlns:dc="http://purl.org/dc/elements/1.1/"
   xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>${settings.blog_name}</title>
-    <description>${settings.blog_description}</description>
+    <title>${settings.site_name}</title>
+    <description>${settings.site_description}</description>
     <link>${siteUrl}/blog</link>
     <atom:link href="${siteUrl}/rss.xml" rel="self" type="application/rss+xml"/>
     <language>en</language>

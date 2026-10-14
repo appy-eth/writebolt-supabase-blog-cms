@@ -32,7 +32,7 @@ export default function NewArticlePage() {
     slug: "",
     excerpt: "",
     content_markdown: "",
-    category: null,
+    category_id: null,
     tags: [],
     featured_image: null,
     featured_image_alt: null,
@@ -40,7 +40,7 @@ export default function NewArticlePage() {
     seo_description: null,
     status: "draft",
     published_at: null,
-    scheduled_date: null,
+    scheduled_for: null,
   });
 
   useEffect(() => {
@@ -96,7 +96,7 @@ export default function NewArticlePage() {
     await post({
       status: "published",
       published_at: new Date().toISOString(),
-      scheduled_date: null,
+      scheduled_for: null,
     });
   }
 
@@ -104,14 +104,14 @@ export default function NewArticlePage() {
     await post({
       status: "draft",
       published_at: null,
-      scheduled_date: null,
+      scheduled_for: null,
     });
   }
 
   async function onSchedule(iso: string) {
     await post({
       status: "scheduled",
-      scheduled_date: iso,
+      scheduled_for: iso,
       published_at: null,
     });
   }

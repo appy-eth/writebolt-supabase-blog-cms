@@ -22,14 +22,14 @@ jobs:
           fi
 
           SETTINGS=$(curl -sS \
-            "${SUPABASE_URL}/rest/v1/blog_settings?select=scheduled_publishing_enabled&limit=1" \
+            "${SUPABASE_URL}/rest/v1/site_settings?select=scheduled_publishing_enabled&limit=1" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
 
           ENABLED=$(echo "$SETTINGS" | python3 -c "import sys,json; data=json.loads(sys.stdin.read() or '[]'); print(data[0].get('scheduled_publishing_enabled', True) if data else True)")
 
           if [ "$ENABLED" = "False" ] || [ "$ENABLED" = "false" ]; then
-            echo "Scheduled publishing is disabled in blog_settings. Exiting."
+            echo "Scheduled publishing is disabled in site_settings. Exiting."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -45,12 +45,12 @@ jobs:
           NOW_PLAIN=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
           RESPONSE=$(curl -sS -X PATCH \
-            "${SUPABASE_URL}/rest/v1/articles?status=eq.scheduled&scheduled_date=lte.${NOW}" \
+            "${SUPABASE_URL}/rest/v1/articles?status=eq.scheduled&scheduled_for=lte.${NOW}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -H "Prefer: return=representation" \
-            -d "{\"status\": \"published\", \"published_at\": \"${NOW_PLAIN}\", \"scheduled_date\": null}")
+            -d "{\"status\": \"published\", \"published_at\": \"${NOW_PLAIN}\", \"scheduled_for\": null}")
 
           COUNT=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.loads(sys.stdin.read() or '[]'); print(len(d) if isinstance(d, list) else 0)" 2>/dev/null || echo "0")
           echo "Published ${COUNT} scheduled article(s)"

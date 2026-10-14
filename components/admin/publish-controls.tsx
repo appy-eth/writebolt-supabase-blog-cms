@@ -152,12 +152,12 @@ export function PublishControls({
 
 export function publishPrimaryLabel(article: {
   status?: string;
-  scheduled_date?: string | null;
+  scheduled_for?: string | null;
 }): string {
   const s = article.status ?? "draft";
   if (s === "scheduled") {
-    if (article.scheduled_date) {
-      return `Scheduled for ${new Date(article.scheduled_date).toLocaleString()}`;
+    if (article.scheduled_for) {
+      return `Scheduled for ${new Date(article.scheduled_for).toLocaleString()}`;
     }
     return "Scheduled";
   }

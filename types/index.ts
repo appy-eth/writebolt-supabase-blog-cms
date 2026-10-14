@@ -11,6 +11,7 @@ export interface Author {
   github_url: string | null;
   role: "contributor" | "editor" | "admin";
   is_active: boolean;
+  is_default: boolean;
   created_at: string;
 }
 
@@ -24,7 +25,8 @@ export interface Article {
   content_html: string | null;
   featured_image: string | null;
   featured_image_alt: string | null;
-  category: string | null;
+  category_id: string | null;
+  categories?: { id: string; name: string; slug: string } | null;
   tags: string[];
   word_count: number | null;
   reading_time_minutes: number | null;
@@ -32,7 +34,7 @@ export interface Article {
   seo_description: string | null;
   status: "draft" | "published" | "archived" | "scheduled";
   published_at: string | null;
-  scheduled_date: string | null;
+  scheduled_for: string | null;
   created_at: string;
   updated_at: string;
   author?: Author;
@@ -40,9 +42,11 @@ export interface Article {
 
 export interface BlogSettings {
   id: string;
-  blog_name: string;
+  site_name: string;
   /** Short tagline: header subtitle, default meta description, and social cards when no per-page description exists */
-  blog_description: string;
+  site_description: string;
+  blog_page_heading: string | null;
+  show_featured_categories: boolean;
   logo_url: string | null;
   favicon_url: string | null;
   layout_mode: "standalone" | "embedded" | "custom";
@@ -88,6 +92,7 @@ export interface BlogSettings {
   image_storage_provider: "local" | "supabase";
   supabase_storage_bucket: string;
   scheduled_publishing_enabled: boolean;
+  writebolt_ads_site_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -97,7 +102,8 @@ export interface Category {
   name: string;
   slug: string;
   description: string | null;
-  display_order: number;
+  show_in_nav: boolean;
+  sort_order: number;
   article_count: number;
   home_page_featured: boolean;
   created_at: string;
