@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import { getSiteSettings, getNavCategories, getNavItems } from '../lib/data';
 import { formatTitle, isEmbeddedLayout } from '../lib/seo';
+import { loadHostChrome } from '../lib/host-chrome';
 import { absoluteUrl, publicPath, siteUrl } from '../lib/utils';
 import ThemeToggle from '../components/ThemeToggle.astro';
 import NewsletterSignup from '../components/NewsletterSignup.astro';
@@ -42,11 +43,14 @@ const image = rawImage
     : new URL(rawImage, origin).href
   : null;
 const embedded = isEmbeddedLayout(settings);
+const hostChrome = await loadHostChrome(Astro.request);
 const showHeader =
+  !hostChrome &&
   !embedded &&
   settings.show_header &&
   (settings.layout_mode === 'standalone' || settings.layout_mode === 'custom');
 const showFooter =
+  !hostChrome &&
   !embedded &&
   settings.show_footer &&
   (settings.layout_mode === 'standalone' || settings.layout_mode === 'custom');
@@ -64,10 +68,18 @@ const socialLinks = [
 ].filter((l) => l.url);
 
 const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches);document.documentElement.classList.toggle('dark',d)}catch(e){}})()`;
+const hostVars = hostChrome
+  ? `:root{${[
+      hostChrome.vars.display ? `--font-display:${hostChrome.vars.display}` : '',
+      hostChrome.vars.body ? `--wb-host-body:${hostChrome.vars.body}` : '',
+      hostChrome.vars.background ? `--wb-host-bg:${hostChrome.vars.background}` : '',
+      hostChrome.vars.foreground ? `--wb-host-fg:${hostChrome.vars.foreground}` : '',
+    ].filter(Boolean).join(';')}}`
+  : '';
 ---
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class:list={[!hostChrome && 'wb-fonts']} data-wb-title={title || settings.site_name} data-wb-description={pageDesc}>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -86,7 +98,9 @@ const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t
   <meta name="twitter:title" content={pageTitle} />
   <meta name="twitter:description" content={pageDesc} />
   {image && <meta name="twitter:image" content={image} />}
-  <script is:inline set:html={themeScript} />
+  {!hostChrome && <script is:inline set:html={themeScript} />}
+  {hostChrome && <Fragment set:html={hostChrome.headHtml} />}
+  {hostVars && <style is:inline set:html={hostVars} />}
   {settings.google_analytics_id && (
     <>
       <script async is:inline src={`https://www.googletagmanager.com/gtag/js?id=${settings.google_analytics_id}`} />
@@ -95,7 +109,9 @@ const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t
   )}
   {jsonLd && <JsonLd data={jsonLd} />}
 </head>
-<body>
+<body class:list={[hostChrome ? 'wb-has-host' : 'wb-blog']}>
+  {hostChrome && <div class="wb-host-header" set:html={hostChrome.headerHtml} />}
+  {hostChrome?.headerOffset && <div class="wb-host-offset" style={`height:${hostChrome.headerOffset}`} aria-hidden="true"></div>}
   {showHeader && (
     <header class="site-header">
       <div class="header-inner">
@@ -147,9 +163,10 @@ const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t
     </header>
   )}
 
-  <main class="page-wrap">
+  <main class:list={['page-wrap', hostChrome && 'wb-blog']}>
     <slot />
   </main>
+  {hostChrome && <div class="wb-host-footer" set:html={hostChrome.footerHtml} />}
 
   {showFooter && (
     <footer class="site-footer">

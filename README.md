@@ -34,7 +34,7 @@ Use this when the blog should live at `/blog` on a website that already has its 
 **Copy this prompt**
 
 ```
-Install Writebolt Blog as an add-on on my existing site. Repo: https://github.com/appy-eth/writebolt-supabase-blog-cms — use writebolt-astro/, not the repo root. Serve articles at /blog (set BLOG_BASE_PATH=/blog and SITE_URL to my site). Layout: embedded. Proxy /blog to this app and strip the /blog prefix. Schema: writebolt-astro/supabase/001_initial_schema.sql. If you have Supabase access, add the tables. Otherwise tell me to copy and paste that SQL into the Supabase SQL editor. Then npm install, npm run setup, and npm run dev inside writebolt-astro/.
+Install Writebolt Blog as an add-on on my existing site. Repo: https://github.com/appy-eth/writebolt-supabase-blog-cms — use writebolt-astro/, not the repo root. Serve articles at /blog (set BLOG_BASE_PATH=/blog and SITE_URL to my site). Proxy /blog to this app, strip the /blog prefix, and send the site origin in the x-writebolt-host header. Use writebolt-astro/integration/proxy-blog.mjs. The blog copies the existing site's header, footer, and fonts onto its pages. Do not leave /blog as a blank page, and do not draw a second header. Schema: writebolt-astro/supabase/001_initial_schema.sql. If you have Supabase access, add the tables. Otherwise tell me to copy and paste that SQL into the Supabase SQL editor. Then npm install inside writebolt-astro/. After install, open a terminal there and run npm run setup -- --addon --host <path to this site> so I can complete the setup wizard myself. Do not answer the wizard. It copies Supabase from this site and asks me for the admin username and password. When the wizard finishes, run npm run dev. Then give me the link to the blog admin on my site and how to write the first article.
 ```
 
 ### 1. Clone the Astro app
@@ -54,45 +54,45 @@ npm install
 3. Paste and run `writebolt-astro/supabase/001_initial_schema.sql`. The same file is `supabase/migrations/001_writebolt_blog_schema.sql`. Either copy is the shared schema.
 4. If this database already has an older Astro schema, also run `writebolt-astro/supabase/002_feature_parity.sql`.
 
-### 3. Configure environment
+### 3. Run the setup wizard
+
+Open a terminal in `writebolt-astro/` and run the wizard. Pass the existing site so it can copy that site’s Supabase project. You type the admin username and password. The wizard does not ask for a newsletter key.
 
 ```bash
-cp .env.example .env
+npm run setup -- --addon --host /path/to/your-site
 ```
 
-Set your Supabase URL, anon key, service role key, admin username, and admin password. Then set the public site and the `/blog` prefix:
+Press Enter when it shows the Supabase project it found. If that site has no Supabase project yet, the wizard asks for the project URL and API keys, because the blog still needs a database. It writes `.env`, sets `BLOG_BASE_PATH=/blog`, and seeds the database.
 
-```env
-SITE_URL=https://yoursite.com
-BLOG_BASE_PATH=/blog
-```
+`SITE_URL` is the existing website, with no path. The wizard asks for it and defaults to the URL already on the site.
 
-`SITE_URL` is the existing website, with no path. `BLOG_BASE_PATH=/blog` is what the admin uses when it builds article links.
-
-### 4. Seed and run
+### 4. Run
 
 ```bash
-npm run setup
-npm run dev
+npm run dev -- --port 4322
 ```
 
-- Admin: [http://localhost:4321/admin/login](http://localhost:4321/admin/login)
+- Admin, once `/blog` is proxied: `http://localhost:4321/blog/admin/login`
 
-In **Admin → Settings**, set **Layout** to **embedded** so this blog does not draw a second header and footer over the existing site. Set a real homepage heading. More layout notes are in [`writebolt-astro/AGENTS.md`](writebolt-astro/AGENTS.md).
+The wizard sets **Layout** to **embedded** when `BLOG_BASE_PATH` is set, so Writebolt does not draw its own header and footer. Set a real homepage heading under **Admin → Settings**. Newsletter is also configured there. More notes are in [`writebolt-astro/AGENTS.md`](writebolt-astro/AGENTS.md).
 
 ### 5. Mount it on the existing site
 
-This app still serves its own routes at `/` (`/your-article`, `/admin`, `/category/news`). The existing website should forward `/blog/*` to this server and **remove** the `/blog` prefix before the request arrives.
+With `BLOG_BASE_PATH` set, every public blog page copies the existing site’s header, footer, stylesheets, and fonts. A proxy that returns this app’s HTML is enough. The blog reads the site from `x-writebolt-host`, then `HOST_ORIGIN`, then `SITE_URL`.
 
-Nginx:
+Copy [`writebolt-astro/integration/proxy-blog.mjs`](writebolt-astro/integration/proxy-blog.mjs) into the host project and add it to the Vite plugins. It forwards `/blog` to this server, removes the `/blog` prefix, and sets `x-writebolt-host` to the site the visitor is on.
 
-```nginx
-location /blog/ {
-  proxy_pass http://127.0.0.1:4321/;
-}
+```js
+import { writeboltDevProxyPlugin } from './proxy-blog.mjs';
+
+export default defineConfig({
+  vite: { plugins: [writeboltDevProxyPlugin()] },
+});
 ```
 
-After that, an article in the admin opens at `https://yoursite.com/blog/your-article`.
+Point `WRITEBOLT_ORIGIN` at this app (default `http://127.0.0.1:4322`). For local dev, if `SITE_URL` is the production domain, set `HOST_ORIGIN` to the local site (for example `http://localhost:4321`).
+
+After that, an article in the admin opens at `https://yoursite.com/blog/your-article`. The page uses the existing site’s header, footer, and type.
 
 Google only reads `https://yoursite.com/robots.txt`. Add the blog’s news rules to that file (see [Google News](#google-news) below). This app’s own `/robots.txt` is not the file Google uses when the blog is mounted under `/blog`.
 
@@ -103,7 +103,7 @@ Use this when you are launching a blog or news site on its own domain.
 **Copy this prompt**
 
 ```
-Install Writebolt Blog as a standalone site. Repo: https://github.com/appy-eth/writebolt-supabase-blog-cms — use writebolt-astro/, not the repo root. Leave BLOG_BASE_PATH empty so articles are at /{slug}. Schema: writebolt-astro/supabase/001_initial_schema.sql. If you have Supabase access, add the tables. Otherwise tell me to copy and paste that SQL into the Supabase SQL editor. Then npm install, npm run setup, and npm run dev inside writebolt-astro/.
+Install Writebolt Blog as a standalone site. Repo: https://github.com/appy-eth/writebolt-supabase-blog-cms — use writebolt-astro/, not the repo root. Leave BLOG_BASE_PATH empty so articles are at /{slug}. Schema: writebolt-astro/supabase/001_initial_schema.sql. If you have Supabase access, add the tables. Otherwise tell me to copy and paste that SQL into the Supabase SQL editor. Then npm install inside writebolt-astro/. After install, open a terminal there and run npm run setup so I can complete the setup wizard myself. Do not answer the wizard. It asks for the Supabase project and the admin username and password. When the wizard finishes, run npm run dev. Then give me the link to the blog admin and how to write the first article.
 ```
 
 ### 1. Clone the Astro app
@@ -120,31 +120,26 @@ npm install
 2. In **SQL Editor**, run `writebolt-astro/supabase/001_initial_schema.sql` (the same SQL as `supabase/migrations/001_writebolt_blog_schema.sql`).
 3. If you already applied an older Astro schema, also run `writebolt-astro/supabase/002_feature_parity.sql`.
 
-### 3. Configure environment
+### 3. Run the setup wizard
 
-```bash
-cp .env.example .env
-```
-
-Fill in Supabase URL, anon key, service role key, admin username, and admin password. Point `SITE_URL` at this site and leave the base path empty:
-
-```env
-SITE_URL=https://yoursite.com
-```
-
-Do not set `BLOG_BASE_PATH`. Articles are published at `/{slug}`.
-
-### 4. Seed and run
+Open a terminal in `writebolt-astro/` and run:
 
 ```bash
 npm run setup
+```
+
+The wizard asks for the Supabase project URL, anon key, and service role key (Supabase → Project Settings → API), the site URL, and the admin username and password. It writes `.env`, leaves `BLOG_BASE_PATH` empty, generates `SETTINGS_ENCRYPTION_KEY`, and seeds the database. Newsletter is configured later in **Admin → Settings**.
+
+### 4. Run
+
+```bash
 npm run dev
 ```
 
 - Site: [http://localhost:4321](http://localhost:4321)
 - Admin: [http://localhost:4321/admin/login](http://localhost:4321/admin/login)
 
-`npm run setup` creates the default author, site settings, and AI settings row, and generates `SETTINGS_ENCRYPTION_KEY` if it is missing.
+The wizard creates the default author, site settings, and AI settings row. Articles are published at `/{slug}`.
 
 ### 5. Deploy
 

@@ -33,22 +33,22 @@ Go to [supabase.com](https://supabase.com) and create a new project. Then run **
 
 If you already applied an older slim Astro schema, run **`supabase/002_feature_parity.sql`** as well to add the extra columns and tables.
 
-### 2. Configure environment
-
-```bash
-cp .env.example .env
-```
-
-Fill in Supabase URL, anon key, service role key, admin username and password, and `SITE_URL`. For an add-on on an existing site, also set `BLOG_BASE_PATH=/blog`. Leave that empty for a standalone blog. `npm run setup` will generate `SETTINGS_ENCRYPTION_KEY` if it is missing.
-
-### 3. Install and seed
+### 2. Install and run the setup wizard
 
 ```bash
 npm install
 npm run setup
 ```
 
-### 4. Run
+Open that in a terminal you can type in. A standalone blog asks for the Supabase project URL, anon key, and service role key, then the admin username and password. An add-on copies Supabase from the existing site:
+
+```bash
+npm run setup -- --addon --host /path/to/your-site
+```
+
+The wizard writes `.env` and generates `SETTINGS_ENCRYPTION_KEY` if it is missing. Newsletter is configured later in **Admin → Settings**.
+
+### 3. Run
 
 ```bash
 npm run dev

@@ -131,7 +131,7 @@ const s = await adminGetSettings();
           <input type="radio" name="layout_mode" value={mode} checked={s.layout_mode === mode} />
           <strong style="text-transform:capitalize">{mode}</strong>
           {mode === 'standalone' && ' — full header and footer'}
-          {mode === 'embedded' && ' — no header/footer'}
+          {mode === 'embedded' && ' — add-on: use the existing site header, footer, and fonts'}
           {mode === 'custom' && ' — header with your branding'}
         </label>
       ))}
