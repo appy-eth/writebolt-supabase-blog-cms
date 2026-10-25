@@ -22,6 +22,7 @@ if (authRedirect) return authRedirect;
 </Admin>
 
 <script>
+  import { clientPath } from '../../lib/client-path';
   const grid = document.querySelector('[data-media-grid]');
   const countEl = document.querySelector('[data-media-count]');
   const status = document.querySelector('[data-media-status]');
@@ -29,7 +30,7 @@ if (authRedirect) return authRedirect;
   const filesInput = document.querySelector('[data-media-files]') as HTMLInputElement | null;
 
   async function load() {
-    const res = await fetch('/api/admin/media');
+    const res = await fetch(clientPath('/api/admin/media'));
     if (!res.ok) { if (status) status.textContent = 'Could not load media.'; return; }
     const images = await res.json();
     if (countEl) countEl.textContent = `${images.length} image${images.length !== 1 ? 's' : ''}`;
@@ -53,7 +54,7 @@ if (authRedirect) return authRedirect;
     grid.querySelectorAll('[data-del]').forEach((b) => {
       b.addEventListener('click', async () => {
         if (!confirm('Delete this image?')) return;
-        await fetch('/api/admin/media', {
+        await fetch(clientPath('/api/admin/media'), {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ path: (b as HTMLElement).dataset.del }),
@@ -71,7 +72,7 @@ if (authRedirect) return authRedirect;
     for (const file of Array.from(files)) {
       const fd = new FormData();
       fd.append('file', file);
-      await fetch('/api/upload', { method: 'POST', body: fd });
+      await fetch(clientPath('/api/upload'), { method: 'POST', body: fd });
     }
     filesInput.value = '';
     if (status) status.textContent = '';

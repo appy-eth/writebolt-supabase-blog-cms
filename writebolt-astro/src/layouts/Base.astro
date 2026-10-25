@@ -1,13 +1,9 @@
 ---
-import '../styles/global.css';
-import { getSiteSettings, getNavCategories, getNavItems } from '../lib/data';
-import { formatTitle, isEmbeddedLayout } from '../lib/seo';
-import { loadHostChrome } from '../lib/host-chrome';
-import { absoluteUrl, publicPath, siteUrl } from '../lib/utils';
-import ThemeToggle from '../components/ThemeToggle.astro';
-import NewsletterSignup from '../components/NewsletterSignup.astro';
+import HostLayout from 'virtual:writebolt/layout';
+import StandaloneShell from './StandaloneShell.astro';
 import JsonLd from '../components/JsonLd.astro';
-import WriteboltAd from '../components/WriteboltAd.astro';
+import { getSiteSettings } from '../lib/data';
+import { absoluteAssetUrl, blogBasePath, publicPath, siteUrl } from '../lib/utils';
 
 interface Props {
   title?: string;
@@ -19,9 +15,6 @@ interface Props {
   articlePublished?: string | null;
 }
 
-const settings = await getSiteSettings();
-const categories = await getNavCategories();
-const navItems = await getNavItems();
 const {
   title,
   description,
@@ -32,183 +25,39 @@ const {
   articlePublished,
 } = Astro.props;
 
-const pageTitle = title ? formatTitle(title, settings) : settings.site_name;
-const pageDesc = description || settings.site_description;
+const host = HostLayout;
+const Shell = host || StandaloneShell;
+const settings = host ? await getSiteSettings() : null;
+const pageDesc = description || settings?.site_description;
 const origin = siteUrl();
-const canonicalUrl = canonical || absoluteUrl(Astro.url.pathname);
-const rawImage = ogImage || settings.default_og_image;
+const rawImage = ogImage || settings?.default_og_image;
 const image = rawImage
   ? /^https?:\/\//i.test(rawImage)
     ? rawImage
-    : new URL(rawImage, origin).href
-  : null;
-const embedded = isEmbeddedLayout(settings);
-const hostChrome = await loadHostChrome(Astro.request);
-const showHeader =
-  !hostChrome &&
-  !embedded &&
-  settings.show_header &&
-  (settings.layout_mode === 'standalone' || settings.layout_mode === 'custom');
-const showFooter =
-  !hostChrome &&
-  !embedded &&
-  settings.show_footer &&
-  (settings.layout_mode === 'standalone' || settings.layout_mode === 'custom');
-const favicon = settings.favicon_url || '/favicon.svg';
-const showFooterNewsletter =
-  settings.newsletter_enabled &&
-  (settings.newsletter_embed_url?.trim() || settings.newsletter_list_id?.trim());
-
-const socialLinks = [
-  { url: settings.social_twitter, label: 'Twitter' },
-  { url: settings.social_linkedin, label: 'LinkedIn' },
-  { url: settings.social_github, label: 'GitHub' },
-  { url: settings.social_youtube, label: 'YouTube' },
-  { url: settings.social_website, label: 'Website' },
-].filter((l) => l.url);
-
-const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches);document.documentElement.classList.toggle('dark',d)}catch(e){}})()`;
-const hostVars = hostChrome
-  ? `:root{${[
-      hostChrome.vars.display ? `--font-display:${hostChrome.vars.display}` : '',
-      hostChrome.vars.body ? `--wb-host-body:${hostChrome.vars.body}` : '',
-      hostChrome.vars.background ? `--wb-host-bg:${hostChrome.vars.background}` : '',
-      hostChrome.vars.foreground ? `--wb-host-fg:${hostChrome.vars.foreground}` : '',
-    ].filter(Boolean).join(';')}}`
-  : '';
+    : absoluteAssetUrl(rawImage, origin) || new URL(rawImage, origin).href
+  : undefined;
+const mount = blogBasePath();
 ---
 
-<!DOCTYPE html>
-<html lang="en" class:list={[!hostChrome && 'wb-fonts']} data-wb-title={title || settings.site_name} data-wb-description={pageDesc}>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{pageTitle}</title>
-  <meta name="description" content={pageDesc} />
-  <link rel="canonical" href={canonicalUrl} />
-  <link rel="icon" href={favicon} />
-  <link rel="alternate" type="application/rss+xml" title={settings.site_name} href={publicPath('/rss.xml')} />
-  <meta property="og:title" content={pageTitle} />
-  <meta property="og:description" content={pageDesc} />
-  <meta property="og:type" content={ogType} />
-  <meta property="og:url" content={canonicalUrl} />
-  {image && <meta property="og:image" content={image} />}
-  {articlePublished && <meta property="article:published_time" content={articlePublished} />}
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content={pageTitle} />
-  <meta name="twitter:description" content={pageDesc} />
-  {image && <meta name="twitter:image" content={image} />}
-  {!hostChrome && <script is:inline set:html={themeScript} />}
-  {hostChrome && <Fragment set:html={hostChrome.headHtml} />}
-  {hostVars && <style is:inline set:html={hostVars} />}
-  {settings.google_analytics_id && (
-    <>
-      <script async is:inline src={`https://www.googletagmanager.com/gtag/js?id=${settings.google_analytics_id}`} />
-      <script is:inline set:html={`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${settings.google_analytics_id}');`} />
-    </>
+<Shell
+  title={host ? (title || settings?.site_name) : title}
+  description={host ? pageDesc : description}
+  ogImage={ogImage}
+  ogType={ogType}
+  canonical={canonical}
+  jsonLd={jsonLd}
+  articlePublished={articlePublished}
+  canonicalPath={Astro.url.pathname}
+  image={image}
+>
+  {host && (
+    <Fragment slot="head">
+      <link rel="alternate" type="application/rss+xml" title={settings?.site_name} href={publicPath('/rss.xml')} />
+      {articlePublished && <meta property="article:published_time" content={articlePublished} />}
+      {jsonLd && <JsonLd data={jsonLd} />}
+    </Fragment>
   )}
-  {jsonLd && <JsonLd data={jsonLd} />}
-</head>
-<body class:list={[hostChrome ? 'wb-has-host' : 'wb-blog']}>
-  {hostChrome && <div class="wb-host-header" set:html={hostChrome.headerHtml} />}
-  {hostChrome?.headerOffset && <div class="wb-host-offset" style={`height:${hostChrome.headerOffset}`} aria-hidden="true"></div>}
-  {showHeader && (
-    <header class="site-header">
-      <div class="header-inner">
-        <a href={publicPath('/')} class="site-logo">
-          {settings.logo_url
-            ? <img src={settings.logo_url} alt={settings.site_name} />
-            : settings.site_name
-          }
-        </a>
-
-        {(categories.length > 0 || navItems.length > 0) && (
-          <nav class="header-nav" aria-label="Main">
-            {categories.map((cat) => (
-              <a
-                href={publicPath(`/category/${cat.slug}`)}
-                aria-current={Astro.url.pathname === `/category/${cat.slug}` ? 'page' : undefined}
-              >
-                {cat.name}
-              </a>
-            ))}
-            {navItems.map((item) => (
-              <a
-                href={item.url}
-                target={item.open_in_new_tab ? '_blank' : undefined}
-                rel={item.open_in_new_tab ? 'noopener noreferrer' : undefined}
-              >
-                {item.label}
-              </a>
-            ))}
-          </nav>
-        )}
-
-        <div class="header-spacer"></div>
-        <a href={publicPath('/authors')} class="header-link">Authors</a>
-        <ThemeToggle />
-        <button type="button" class="nav-toggle" data-nav-toggle aria-label="Toggle menu" aria-expanded="false">
-          <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
-        </button>
-      </div>
-      <div class="header-mobile" data-nav-mobile hidden>
-        {categories.map((cat) => (
-          <a href={publicPath(`/category/${cat.slug}`)}>{cat.name}</a>
-        ))}
-        {navItems.map((item) => (
-          <a href={item.url} target={item.open_in_new_tab ? '_blank' : undefined}>{item.label}</a>
-        ))}
-        <a href={publicPath('/authors')}>Authors</a>
-      </div>
-    </header>
-  )}
-
-  <main class:list={['page-wrap', hostChrome && 'wb-blog']}>
+  <div class:list={['wb-blog', { 'page-wrap': Boolean(host) }]} data-wb-base={mount}>
     <slot />
-  </main>
-  {hostChrome && <div class="wb-host-footer" set:html={hostChrome.footerHtml} />}
-
-  {showFooter && (
-    <footer class="site-footer">
-      {showFooterNewsletter && (
-        <div class="site-footer__nl">
-          <NewsletterSignup
-            embedUrl={settings.newsletter_embed_url}
-            listId={settings.newsletter_list_id}
-            successMessage={settings.newsletter_success_message}
-            successRedirectUrl={settings.newsletter_success_redirect_url}
-            variant="footer"
-            idPrefix="footer-nl"
-          />
-        </div>
-      )}
-      {settings.writebolt_ads_site_id && (
-        <div class="site-footer__ad">
-          <WriteboltAd placement="footer" siteId={settings.writebolt_ads_site_id} />
-        </div>
-      )}
-      <div class="site-footer__bottom">
-        <p>&copy; {new Date().getFullYear()} {settings.site_name}. All rights reserved. · Powered by <a href="https://writebolt.com" target="_blank" rel="noopener">Writebolt</a></p>
-        {socialLinks.length > 0 && (
-          <div class="site-footer__social">
-            {socialLinks.map((link) => (
-              <a href={link.url!} target="_blank" rel="noopener noreferrer" aria-label={link.label}>{link.label}</a>
-            ))}
-          </div>
-        )}
-      </div>
-    </footer>
-  )}
-
-  <script>
-    const btn = document.querySelector('[data-nav-toggle]');
-    const panel = document.querySelector('[data-nav-mobile]');
-    btn?.addEventListener('click', () => {
-      const hidden = panel?.hasAttribute('hidden');
-      if (hidden) panel?.removeAttribute('hidden');
-      else panel?.setAttribute('hidden', '');
-      btn.setAttribute('aria-expanded', hidden ? 'true' : 'false');
-    });
-  </script>
-</body>
-</html>
+  </div>
+</Shell>

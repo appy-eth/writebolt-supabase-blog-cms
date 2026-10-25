@@ -236,6 +236,7 @@ const s = await adminGetSettings();
 </Admin>
 
 <script>
+  import { clientPath } from '../../lib/client-path';
   function bindUpload(btnSel: string, fileSel: string, inputSel: string, folder = 'site') {
     const btn = document.querySelector(btnSel);
     const fileInput = document.querySelector(fileSel) as HTMLInputElement | null;
@@ -247,7 +248,7 @@ const s = await adminGetSettings();
       const fd = new FormData();
       fd.append('file', file);
       fd.append('folder', folder);
-      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const res = await fetch(clientPath('/api/upload'), { method: 'POST', body: fd });
       if (res.ok) {
         const { url } = await res.json();
         if (urlInput) urlInput.value = url;

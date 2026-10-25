@@ -1,3 +1,4 @@
+import { supabaseUrl } from '../env';
 import { supabaseAdmin } from '../supabase';
 import type { StorageProvider, ImageMeta, AssetFolder } from './provider';
 
@@ -26,9 +27,7 @@ export class SupabaseStorageProvider implements StorageProvider {
   }
 
   getImageUrl(filePath: string): string {
-    const supabaseUrl =
-      process.env.SUPABASE_URL || import.meta.env.SUPABASE_URL;
-    return `${supabaseUrl}/storage/v1/object/public/${this.bucket}/${filePath}`;
+    return `${supabaseUrl()}/storage/v1/object/public/${this.bucket}/${filePath}`;
   }
 
   async deleteImage(imagePath: string): Promise<void> {

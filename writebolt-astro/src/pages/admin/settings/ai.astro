@@ -59,11 +59,12 @@ if (authRedirect) return authRedirect;
 </Admin>
 
 <script>
+  import { clientPath } from '../../../lib/client-path';
   const loadEl = document.querySelector('[data-ai-load]');
   const form = document.querySelector('[data-ai-settings]') as HTMLFormElement | null;
 
   async function load() {
-    const res = await fetch('/api/admin/ai-settings');
+    const res = await fetch(clientPath('/api/admin/ai-settings'));
     const data = await res.json();
     if (loadEl) loadEl.hidden = true;
     if (form) form.hidden = false;
@@ -90,7 +91,7 @@ if (authRedirect) return authRedirect;
     };
     if (openai) body.openai_api_key = openai;
     if (replicate) body.replicate_api_key = replicate;
-    const res = await fetch('/api/admin/ai-settings', {
+    const res = await fetch(clientPath('/api/admin/ai-settings'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

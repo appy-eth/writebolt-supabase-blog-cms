@@ -26,13 +26,13 @@ const FILTERS = [
       <h1>Articles</h1>
       <p class="admin-sub">Manage your blog articles</p>
     </div>
-    <a href="/admin/new" class="btn btn--primary">+ New Article</a>
+    <a href={publicPath('/admin/new')} class="btn btn--primary">+ New Article</a>
   </div>
 
   <div class="filter-tabs">
     {FILTERS.map((f) => (
       <a
-        href={f.id === 'all' ? '/admin' : `/admin?status=${f.id}`}
+        href={f.id === 'all' ? publicPath('/admin') : publicPath(`/admin?status=${f.id}`)}
         class:list={['filter-tab', { 'is-active': filter === f.id }]}
       >
         {f.label}
@@ -43,7 +43,7 @@ const FILTERS = [
   {articles.length === 0 ? (
     <div class="empty-state empty-state--lg">
       <p>{filter === 'all' ? 'No articles yet. Create your first one!' : 'No articles in this filter.'}</p>
-      {filter === 'all' && <a href="/admin/new" class="btn btn--primary" style="margin-top: 1rem;">Write your first article</a>}
+      {filter === 'all' && <a href={publicPath('/admin/new')} class="btn btn--primary" style="margin-top: 1rem;">Write your first article</a>}
     </div>
   ) : (
     <table class="admin-table">
@@ -60,7 +60,7 @@ const FILTERS = [
         {articles.map((a) => (
           <tr>
             <td>
-              <a href={`/admin/edit/${a.id}`}><strong>{a.headline}</strong></a>
+              <a href={publicPath(`/admin/edit/${a.id}`)}><strong>{a.headline}</strong></a>
               <div style="font-size: 0.8rem; color: var(--muted);">{publicPath(`/${a.slug}`)}</div>
             </td>
             <td>
@@ -74,7 +74,7 @@ const FILTERS = [
             <td>{a.categories?.name || '—'}</td>
             <td style="color: var(--muted); font-size: 0.85rem;">{formatDate(a.updated_at)}</td>
             <td>
-              <a href={`/admin/edit/${a.id}`} class="btn btn--sm">Edit</a>
+              <a href={publicPath(`/admin/edit/${a.id}`)} class="btn btn--sm">Edit</a>
               {a.status === 'published' && (
                 <a href={absoluteUrl(`/${a.slug}`)} target="_blank" class="btn btn--sm">View</a>
               )}

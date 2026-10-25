@@ -5,6 +5,7 @@ import { requireAuth } from '../../lib/auth';
 import { adminGetCategories, adminGetAuthors, adminHasOpenAIKey } from '../../lib/data';
 import { supabaseAdmin } from '../../lib/supabase';
 import { articlePayloadFromForm } from '../../lib/article-form';
+import { publicPath } from '../../lib/utils';
 
 const authRedirect = requireAuth(Astro.request);
 if (authRedirect) return authRedirect;
@@ -20,7 +21,7 @@ if (Astro.request.method === 'POST') {
   const payload = articlePayloadFromForm(form);
   const { error: dbError } = await supabaseAdmin.from('articles').insert(payload);
   if (dbError) error = dbError.message;
-  else return Astro.redirect('/admin');
+  else return Astro.redirect(publicPath('/admin'));
 }
 ---
 

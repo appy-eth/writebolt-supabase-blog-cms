@@ -13,7 +13,7 @@ import {
   getRelatedArticles,
   getSiteSettings,
 } from '../lib/data';
-import { formatDate, publicPath, siteUrl } from '../lib/utils';
+import { absoluteUrl, formatDate, publicPath } from '../lib/utils';
 import { formatReadingTime } from '../lib/reading-time';
 import { renderMarkdown } from '../lib/markdown';
 import { articleJsonLd } from '../lib/seo';
@@ -47,14 +47,13 @@ const showInlineCta =
 const showArticleNewsletter = showNewsletter && !showInlineCta && !markdownHasCta;
 const pageTitle = article.seo_title || article.headline;
 const pageDesc = article.seo_description || article.excerpt || undefined;
-const origin = siteUrl();
 const ogParams = new URLSearchParams({
   title: pageTitle,
   blog: settings.site_name,
 });
 if (author?.name) ogParams.set('author', author.name);
 if (cat?.name) ogParams.set('category', cat.name);
-const ogFallback = `${origin}/api/og?${ogParams.toString()}`;
+const ogFallback = absoluteUrl(`/api/og?${ogParams.toString()}`);
 ---
 
 <Base

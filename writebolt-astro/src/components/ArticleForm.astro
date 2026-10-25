@@ -36,7 +36,7 @@ const scheduledValue = article?.scheduled_for
     </div>
   ) : (
     <p class="ai-toolbar__hint">
-      Add your OpenAI API key in <a href="/admin/settings/ai">Settings → AI</a> to enable AI assist.
+      Add your OpenAI API key in <a href={publicPath('/admin/settings/ai')}>Settings → AI</a> to enable AI assist.
     </p>
   )}
   <div class="ai-headlines" data-ai-headlines hidden></div>
@@ -162,6 +162,7 @@ const scheduledValue = article?.scheduled_for
 </div>
 
 <script>
+  import { clientPath } from '../lib/client-path';
   const form = document.querySelector('[data-article-form]') as HTMLFormElement | null;
   const content = document.querySelector('[data-content]') as HTMLTextAreaElement | null;
   const headline = document.querySelector('[data-headline]') as HTMLInputElement | null;
@@ -221,7 +222,7 @@ const scheduledValue = article?.scheduled_for
     if (!file) return;
     const fd = new FormData();
     fd.append('file', file);
-    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const res = await fetch(clientPath('/api/upload'), { method: 'POST', body: fd });
     if (res.ok) {
       const { url } = await res.json();
       if (featuredUrl) featuredUrl.value = url;
@@ -232,7 +233,7 @@ const scheduledValue = article?.scheduled_for
   });
 
   async function callAI(action: string, body: Record<string, unknown>) {
-    const res = await fetch(`/api/ai/${action}`, {
+    const res = await fetch(clientPath(`/api/ai/${action}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

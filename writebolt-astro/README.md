@@ -4,7 +4,7 @@ This folder is the blog you install from the [Writebolt repository](https://gith
 
 Install it in one of two ways. The full steps are in the repository [README](../README.md).
 
-- **Add-on** — add a Supabase-powered blog to a website you already have. Set `BLOG_BASE_PATH=/blog`. Articles are published at `/blog/{slug}`.
+- **Add-on** — add a Supabase-powered blog to an Astro site you already have. `writebolt()` in that site's `astro.config.mjs` serves articles at `/blog/{slug}` on the same dev server and the same deployment.
 - **Standalone** — create a blog or news website on its own. Leave `BLOG_BASE_PATH` empty. Articles are published at `/{slug}`.
 
 > **Looking for Next.js?** That edition is the repository root (`../`). See the main [README](../README.md) → *Next.js edition*.
@@ -23,7 +23,7 @@ Install it in one of two ways. The full steps are in the repository [README](../
 - **Writebolt ads** — optional site ID in settings
 - **Env-based auth** — SHA-256 hashed session cookie (no Supabase Auth required)
 
-When adding this blog to an **existing** Astro site, follow **[AGENTS.md](./AGENTS.md)** (layout mode, homepage heading, featured categories, CTAs).
+When adding this blog to an **existing** Astro site, follow **[AGENTS.md](./AGENTS.md)**. Use `integration/astro.mjs`. Do not proxy this app and do not deploy it separately.
 
 ## Quick Start
 
@@ -40,13 +40,13 @@ npm install
 npm run setup
 ```
 
-Open that in a terminal you can type in. A standalone blog asks for the Supabase project URL, anon key, and service role key, then the admin username and password. An add-on copies Supabase from the existing site:
+Open that in a terminal you can type in. A standalone blog asks for the Supabase project URL, anon key, and service role key, then the admin username and password. An add-on copies Supabase from the existing site and writes the admin login into that site's `.env`:
 
 ```bash
-npm run setup -- --addon --host /path/to/your-site
+npm run setup -- --addon --host /path/to/your-site --site-url https://yoursite.com --site-name "Your Site"
 ```
 
-The wizard writes `.env` and generates `SETTINGS_ENCRYPTION_KEY` if it is missing. Newsletter is configured later in **Admin → Settings**.
+Then add `writebolt()` to that site's `astro.config.mjs` (see the repository README). Run that site's `npm run dev`. Do not start a second server. The wizard generates `SETTINGS_ENCRYPTION_KEY` if it is missing. Newsletter is configured later in **Admin → Settings**.
 
 ### 3. Run
 
@@ -89,7 +89,7 @@ npm run build
 node dist/server/entry.mjs
 ```
 
-For Vercel, switch the adapter to `@astrojs/vercel` in `astro.config.mjs`.
+For a standalone blog on Vercel, switch the adapter to `@astrojs/vercel` in `astro.config.mjs`. An add-on uses the host site's adapter. Do not deploy this folder as its own project.
 
 ## Scheduled Publishing
 

@@ -5,13 +5,14 @@ import { requireAuth } from '../../../lib/auth';
 import { adminGetArticle, adminGetCategories, adminGetAuthors, adminHasOpenAIKey } from '../../../lib/data';
 import { supabaseAdmin } from '../../../lib/supabase';
 import { articlePayloadFromForm } from '../../../lib/article-form';
+import { publicPath } from '../../../lib/utils';
 
 const authRedirect = requireAuth(Astro.request);
 if (authRedirect) return authRedirect;
 
 const { id } = Astro.params;
 let article = await adminGetArticle(id!);
-if (!article) return Astro.redirect('/admin');
+if (!article) return Astro.redirect(publicPath('/admin'));
 
 const categories = await adminGetCategories();
 const authors = await adminGetAuthors();
@@ -25,14 +26,14 @@ if (Astro.request.method === 'POST') {
 
   if (action === 'delete') {
     await supabaseAdmin.from('articles').delete().eq('id', id);
-    return Astro.redirect('/admin');
+    return Astro.redirect(publicPath('/admin'));
   }
 
   const payload = articlePayloadFromForm(form, { published_at: article.published_at });
   const { error: dbError } = await supabaseAdmin.from('articles').update(payload).eq('id', id);
 
   if (dbError) error = dbError.message;
-  else return Astro.redirect('/admin');
+  else return Astro.redirect(publicPath('/admin'));
 }
 ---
 

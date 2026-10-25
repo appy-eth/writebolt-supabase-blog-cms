@@ -69,7 +69,7 @@ const searchBase = publicPath(searchQuery ? `/?q=${encodeURIComponent(searchQuer
           ) : (
             <div class="empty-state empty-state--lg">
               <p>No articles published yet.</p>
-              <p><a href="/admin/new">Write your first article →</a></p>
+              <p><a href={publicPath('/admin/new')}>Write your first article →</a></p>
             </div>
           )}
         </>

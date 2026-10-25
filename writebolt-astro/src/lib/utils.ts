@@ -1,3 +1,6 @@
+import { applyBase, isLocalUrl, normalizeBase } from './paths.mjs';
+import { base as mountedBase, site as mountedSite } from 'virtual:writebolt/config';
+
 export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -35,11 +38,16 @@ export function formatDateShort(date: string | null): string {
 }
 
 export function siteUrl(): string {
-  return (
+  const env = String(
     (typeof import.meta !== 'undefined' && import.meta.env?.SITE_URL) ||
-    process.env.SITE_URL ||
-    'http://localhost:4321'
+      process.env.SITE_URL ||
+      ''
   ).replace(/\/$/, '');
+  const mounted = String(mountedSite || '').replace(/\/$/, '');
+  if (env && !isLocalUrl(env)) return env;
+  if (mounted) return mounted;
+  if (env) return env;
+  return 'http://localhost:4321';
 }
 
 /**
@@ -48,27 +56,18 @@ export function siteUrl(): string {
  * `/blog` when this app is mounted on an existing website.
  */
 export function blogBasePath(): string {
-  const raw = String(
+  const mounted = normalizeBase(mountedBase);
+  if (mounted) return mounted;
+  return normalizeBase(
     (typeof import.meta !== 'undefined' && import.meta.env?.BLOG_BASE_PATH) ||
       process.env.BLOG_BASE_PATH ||
       ''
-  ).trim();
-  if (!raw || raw === '/') return '';
-  const withSlash = raw.startsWith('/') ? raw : `/${raw}`;
-  return withSlash.replace(/\/$/, '');
+  );
 }
 
-/** Root-relative public path, including `/blog` for add-on installs. */
+/** Root-relative public path, including `/blog` when the blog is mounted on a host site. */
 export function publicPath(path = '/'): string {
-  const base = blogBasePath();
-  const [pathname, query] = path.split('?');
-  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`;
-  const prefixed = !base
-    ? normalized
-    : normalized === '/'
-      ? base
-      : `${base}${normalized}`;
-  return query ? `${prefixed}?${query}` : prefixed;
+  return applyBase(blogBasePath(), path);
 }
 
 /** Absolute public URL for CRM links, sitemaps, RSS, and structured data. */

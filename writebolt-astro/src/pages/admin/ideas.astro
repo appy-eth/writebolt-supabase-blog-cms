@@ -2,7 +2,7 @@
 import Admin from '../../layouts/Admin.astro';
 import { requireAuth } from '../../lib/auth';
 import { supabaseAdmin } from '../../lib/supabase';
-import { slugify } from '../../lib/utils';
+import { publicPath, slugify } from '../../lib/utils';
 import { calculateReadingTime, calculateWordCount } from '../../lib/reading-time';
 
 const authRedirect = requireAuth(Astro.request);
@@ -60,7 +60,7 @@ if (connected && Astro.request.method === 'POST') {
       .select('id')
       .single();
     if (dbError || !data) error = dbError?.message || 'Could not save the draft';
-    else return Astro.redirect(`/admin/edit/${data.id}`);
+    else return Astro.redirect(publicPath(`/admin/edit/${data.id}`));
   }
 }
 

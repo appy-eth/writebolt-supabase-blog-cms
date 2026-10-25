@@ -60,6 +60,7 @@ const inputId = `${idPrefix}-email`;
 </div>
 
 <script>
+  import { clientPath } from '../lib/client-path';
   document.querySelectorAll<HTMLFormElement>('[data-nl-form]').forEach((form) => {
     if (form.dataset.bound) return;
     form.dataset.bound = 'true';
@@ -73,7 +74,7 @@ const inputId = `${idPrefix}-email`;
       submit && (submit.disabled = true);
       if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
       try {
-        const res = await fetch('/api/newsletter/subscribe', {
+        const res = await fetch(clientPath('/api/newsletter/subscribe'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

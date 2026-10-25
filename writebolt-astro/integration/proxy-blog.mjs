@@ -1,26 +1,23 @@
 /**
- * Mount Writebolt Blog at /blog on an existing site.
+ * Proxy Writebolt Blog at /blog for a host that is not an Astro app.
  *
- * The blog app reads the x-writebolt-host header and copies that site's
- * header, footer, styles, and fonts onto every public blog page.
+ * An Astro site should not use this file. Add writebolt() from
+ * integration/astro.mjs to the site's integrations so /blog runs in that
+ * site's dev server and deployment. There is no second process and no
+ * WRITEBOLT_ORIGIN.
  *
- *   WRITEBOLT_ORIGIN=http://127.0.0.1:4322
- *
- * Astro (astro.config.mjs), in the host project:
- *
- *   import { writeboltDevProxyPlugin } from './proxy-blog.mjs';
- *   export default defineConfig({
- *     vite: { plugins: [writeboltDevProxyPlugin()] },
- *   });
- *
- * Production Astro middleware should call proxyBlog() for /blog requests.
- * Copy this file into the host project next to astro.config.mjs.
+ * This proxy is the fallback for a non-Astro host. It forwards /blog to a
+ * separate Writebolt server. In production set WRITEBOLT_ORIGIN. There is
+ * no localhost fallback in production.
  */
 import http from 'node:http';
 import https from 'node:https';
 
 export function writeboltOrigin() {
-  return (process.env.WRITEBOLT_ORIGIN || 'http://127.0.0.1:4322').replace(/\/$/, '');
+  const fromEnv = process.env.WRITEBOLT_ORIGIN || process.env.PUBLIC_WRITEBOLT_ORIGIN;
+  if (fromEnv) return String(fromEnv).replace(/\/$/, '');
+  if (process.env.VERCEL || process.env.NODE_ENV === 'production') return '';
+  return 'http://localhost:4322';
 }
 
 export function isBlogPath(pathname) {
@@ -66,6 +63,9 @@ function siteOriginFromHeaders(headers) {
  */
 export function writeboltDevProxyPlugin() {
   const origin = writeboltOrigin();
+  if (!origin) {
+    return { name: 'writebolt-blog-proxy' };
+  }
   const originUrl = new URL(origin);
   const transport = originUrl.protocol === 'https:' ? https : http;
 

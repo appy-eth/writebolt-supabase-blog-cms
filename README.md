@@ -23,78 +23,96 @@ Writebolt blog can be installed in two ways: **Add-on** and **Standalone**. Use 
 |---|---|---|
 | Use it when | The blog is a section of a site you already have | This blog is the whole website |
 | Public URLs | `https://yoursite.com/blog/your-article` | `https://yoursite.com/your-article` |
-| Env | `BLOG_BASE_PATH=/blog` | Leave `BLOG_BASE_PATH` empty |
+| How it runs | Inside the Astro site you already have, at `/blog` | This app is the whole site |
 
-Both installs use the same Astro app. The admin **View** links, sitemaps, RSS, and on-site article links follow `BLOG_BASE_PATH`, so an add-on no longer points at `/{slug}` on the existing site.
+Both installs use the same Astro app. On an add-on, article links, sitemaps, and RSS are under `/blog` on the host site.
 
 ## Add-on installation
 
-Use this when the blog should live at `/blog` on a website that already has its own pages.
+Use this when the blog should live at `/blog` on an Astro site you already have.
+
+The blog is not a second app. `writebolt()` adds its routes to the site you already run, so `npm run dev` and the existing Vercel (or Node) project serve `/blog`. There is no second dev server, no proxy, and no `WRITEBOLT_ORIGIN`.
+
+The site's layout supplies the header and footer. It needs a `<slot />` for the page body. A `<slot name="head" />` is optional and receives the blog's RSS and JSON-LD tags.
 
 **Copy this prompt**
 
 ```
-Install Writebolt Blog as an add-on on my existing site. Repo: https://github.com/appy-eth/writebolt-supabase-blog-cms — use writebolt-astro/, not the repo root. Serve articles at /blog (set BLOG_BASE_PATH=/blog and SITE_URL to my site). Proxy /blog to this app, strip the /blog prefix, and send the site origin in the x-writebolt-host header. Use writebolt-astro/integration/proxy-blog.mjs. The blog copies the existing site's header, footer, and fonts onto its pages. Do not leave /blog as a blank page, and do not draw a second header. Schema: writebolt-astro/supabase/001_initial_schema.sql. If you have Supabase access, add the tables. Otherwise tell me to copy and paste that SQL into the Supabase SQL editor. Then npm install inside writebolt-astro/. After install, open a terminal there and run npm run setup -- --addon --host <path to this site> so I can complete the setup wizard myself. Do not answer the wizard. It copies Supabase from this site and asks me for the admin username and password. When the wizard finishes, run npm run dev. Then give me the link to the blog admin on my site and how to write the first article.
+Install Writebolt Blog inside this Astro site. Repo: https://github.com/appy-eth/writebolt-supabase-blog-cms — use writebolt-astro/, not the repo root. The blog must run in this site's Astro server at /blog. Do not create a second Astro app, a second dev server, a proxy, a Vite plugin, or a second deployment. Do not set WRITEBOLT_ORIGIN.
+
+Copy writebolt-astro/ into this repo and npm install inside it. Add this to astro.config.mjs, using this site's layout if it is not at that path:
+
+import { writebolt } from './writebolt-astro/integration/astro.mjs';
+integrations: [writebolt({ layout: './src/layouts/Layout.astro' })],
+
+Remove src/pages/blog.astro or src/pages/blog/ if either exists. If this site has a sitemap filter, exclude /blog/admin and /blog/api.
+
+Schema: writebolt-astro/supabase/001_initial_schema.sql. If this repo has supabase/migrations, setup copies the schema there. If you can apply SQL, do that. Otherwise tell me to run that file in the Supabase SQL editor.
+
+From writebolt-astro/, run npm run setup -- --addon --host <path to this site> --site-url <public origin> --site-name "<site name>". Finish setup. Do not leave it for later. The wizard reads Supabase from this site, writes the blog admin login into this site's .env, and sets the blog name and embedded layout. If the service role key is missing, ask me for that one key. Do not point setup at a different app.
+
+Then run this site's npm run dev. Give me /blog and /blog/admin/login, and the admin password the wizard printed.
 ```
 
-### 1. Clone the Astro app
+### 1. Add the blog to the site
 
 ```bash
-git clone https://github.com/appy-eth/writebolt-supabase-blog-cms.git my-blog
-cd my-blog/writebolt-astro
+# from the existing Astro site
+git clone https://github.com/appy-eth/writebolt-supabase-blog-cms.git /tmp/writebolt
+cp -R /tmp/writebolt/writebolt-astro ./writebolt-astro
+cd writebolt-astro
 npm install
 ```
 
-`package.json` is inside `writebolt-astro/`. Running `npm install` at the repository root installs the Next.js app instead.
+`package.json` is inside `writebolt-astro/`. Running `npm install` at the Writebolt repository root installs the Next.js app instead.
 
-### 2. Create the database
-
-1. Create a project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor → New query**.
-3. Paste and run `writebolt-astro/supabase/001_initial_schema.sql`. The same file is `supabase/migrations/001_writebolt_blog_schema.sql`. Either copy is the shared schema.
-4. If this database already has an older Astro schema, also run `writebolt-astro/supabase/002_feature_parity.sql`.
-
-### 3. Run the setup wizard
-
-Open a terminal in `writebolt-astro/` and run the wizard. Pass the existing site so it can copy that site’s Supabase project. You type the admin username and password. The wizard does not ask for a newsletter key.
-
-```bash
-npm run setup -- --addon --host /path/to/your-site
-```
-
-Press Enter when it shows the Supabase project it found. If that site has no Supabase project yet, the wizard asks for the project URL and API keys, because the blog still needs a database. It writes `.env`, sets `BLOG_BASE_PATH=/blog`, and seeds the database.
-
-`SITE_URL` is the existing website, with no path. The wizard asks for it and defaults to the URL already on the site.
-
-### 4. Run
-
-```bash
-npm run dev -- --port 4322
-```
-
-- Admin, once `/blog` is proxied: `http://localhost:4321/blog/admin/login`
-
-The wizard sets **Layout** to **embedded** when `BLOG_BASE_PATH` is set, so Writebolt does not draw its own header and footer. Set a real homepage heading under **Admin → Settings**. Newsletter is also configured there. More notes are in [`writebolt-astro/AGENTS.md`](writebolt-astro/AGENTS.md).
-
-### 5. Mount it on the existing site
-
-With `BLOG_BASE_PATH` set, every public blog page copies the existing site’s header, footer, stylesheets, and fonts. A proxy that returns this app’s HTML is enough. The blog reads the site from `x-writebolt-host`, then `HOST_ORIGIN`, then `SITE_URL`.
-
-Copy [`writebolt-astro/integration/proxy-blog.mjs`](writebolt-astro/integration/proxy-blog.mjs) into the host project and add it to the Vite plugins. It forwards `/blog` to this server, removes the `/blog` prefix, and sets `x-writebolt-host` to the site the visitor is on.
+In the site's `astro.config.mjs`:
 
 ```js
-import { writeboltDevProxyPlugin } from './proxy-blog.mjs';
+import { writebolt } from './writebolt-astro/integration/astro.mjs';
 
 export default defineConfig({
-  vite: { plugins: [writeboltDevProxyPlugin()] },
+  integrations: [
+    writebolt({ layout: './src/layouts/Layout.astro' }),
+  ],
 });
 ```
 
-Point `WRITEBOLT_ORIGIN` at this app (default `http://127.0.0.1:4322`). For local dev, if `SITE_URL` is the production domain, set `HOST_ORIGIN` to the local site (for example `http://localhost:4321`).
+Use the layout this site already wraps pages in. Delete a `src/pages/blog.astro` file or `src/pages/blog/` directory if the site has one, so it does not override `/blog`.
 
-After that, an article in the admin opens at `https://yoursite.com/blog/your-article`. The page uses the existing site’s header, footer, and type.
+### 2. Create the database
 
-Google only reads `https://yoursite.com/robots.txt`. Add the blog’s news rules to that file (see [Google News](#google-news) below). This app’s own `/robots.txt` is not the file Google uses when the blog is mounted under `/blog`.
+1. Open the Supabase project this site already uses.
+2. Open **SQL Editor → New query**.
+3. Paste and run `writebolt-astro/supabase/001_initial_schema.sql`. The same file is `supabase/migrations/001_writebolt_blog_schema.sql`.
+4. If this database already has an older Astro schema, also run `writebolt-astro/supabase/002_feature_parity.sql`.
+
+If the site has a `supabase/migrations` folder, setup copies that schema in for you. The tables still have to be applied once. The Supabase client cannot create tables.
+
+### 3. Run the setup wizard
+
+From `writebolt-astro/`:
+
+```bash
+npm run setup -- --addon --host /path/to/your-site --site-url https://yoursite.com --site-name "Your Site"
+```
+
+The wizard reads `SUPABASE_URL` or `PUBLIC_SUPABASE_URL`, the anon key, and `SUPABASE_SERVICE_ROLE_KEY` from that site. If the URL and anon key are present and the service role key is not, it asks for the service role key only. It reads the public origin from `--site-url`, then `astro.config` `site`, then `SITE_URL` / `PUBLIC_MARKETING_URL`. It does not use `NEXT_PUBLIC_APP_URL` while a real site URL is available, and it will not save `http://localhost` for an add-on unless you type that yourself.
+
+It writes the admin username and password to the site's `.env` as `WRITEBOLT_ADMIN_USERNAME` and `WRITEBOLT_ADMIN_PASSWORD`, sets the blog name, and sets layout to **embedded** even when the schema SQL already inserted a settings row. Uploads go to the `blog-images` Supabase bucket. When `public/robots.txt` exists, the news sitemap lines are added there.
+
+### 4. Run the site you already have
+
+```bash
+npm run dev
+```
+
+- Blog: `http://localhost:4321/blog`
+- Admin: `http://localhost:4321/blog/admin/login`
+
+Deploy the same project you already deploy. The blog uses that project's adapter and environment. Set a homepage heading under **Admin → Settings** if you want one that differs from the site name. More notes are in [`writebolt-astro/AGENTS.md`](writebolt-astro/AGENTS.md).
+
+Google only reads `https://yoursite.com/robots.txt`. Setup adds the news rules when that file exists (see [Google News](#google-news) below).
 
 ## Standalone installation
 
@@ -148,7 +166,7 @@ npm run build
 node dist/server/entry.mjs
 ```
 
-The default adapter is `@astrojs/node`. For Vercel, switch the adapter to `@astrojs/vercel` in `writebolt-astro/astro.config.mjs`.
+The default adapter is `@astrojs/node`. For a standalone blog on Vercel, switch the adapter to `@astrojs/vercel` in `writebolt-astro/astro.config.mjs`. An add-on on an existing Astro site uses that site's adapter and that site's deployment. Do not deploy `writebolt-astro` as its own project.
 
 ---
 
@@ -163,7 +181,7 @@ Both install types can be submitted to Google News.
 
 Submit the news sitemap in [Google Search Console](https://search.google.com/search-console). Optional: set `NEWS_LANGUAGE` (default `en`) to the publication language.
 
-**Add-on:** put these lines in the existing site’s root `robots.txt`, using your domain:
+**Add-on:** setup writes these lines into the existing site’s `public/robots.txt` when that file is already there. Google reads that file, using your domain:
 
 ```
 User-agent: Googlebot-News

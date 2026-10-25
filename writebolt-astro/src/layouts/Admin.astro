@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { absoluteUrl } from '../lib/utils';
+import { absoluteUrl, blogBasePath, publicPath } from '../lib/utils';
 
 interface Props {
   title: string;
@@ -10,32 +10,32 @@ interface Props {
 const { title, active } = Astro.props;
 
 const navItems = [
-  { href: '/admin', label: 'Articles', key: 'articles' },
-  { href: '/admin/new', label: 'New Article', key: 'new' },
-  { href: '/admin/categories', label: 'Categories', key: 'categories' },
-  { href: '/admin/authors', label: 'Authors', key: 'authors' },
-  { href: '/admin/media', label: 'Media', key: 'media' },
-  { href: '/admin/nav', label: 'Navigation', key: 'nav' },
-  { href: '/admin/settings', label: 'Settings', key: 'settings' },
-  { href: '/admin/settings/ai', label: 'AI Config', key: 'ai' },
-  { href: '/admin/ideas', label: 'Ideas', key: 'ideas' },
-  { href: '/admin/link-pro', label: 'Link Pro', key: 'link-pro' },
+  { href: publicPath('/admin'), label: 'Articles', key: 'articles' },
+  { href: publicPath('/admin/new'), label: 'New Article', key: 'new' },
+  { href: publicPath('/admin/categories'), label: 'Categories', key: 'categories' },
+  { href: publicPath('/admin/authors'), label: 'Authors', key: 'authors' },
+  { href: publicPath('/admin/media'), label: 'Media', key: 'media' },
+  { href: publicPath('/admin/nav'), label: 'Navigation', key: 'nav' },
+  { href: publicPath('/admin/settings'), label: 'Settings', key: 'settings' },
+  { href: publicPath('/admin/settings/ai'), label: 'AI Config', key: 'ai' },
+  { href: publicPath('/admin/ideas'), label: 'Ideas', key: 'ideas' },
+  { href: publicPath('/admin/link-pro'), label: 'Link Pro', key: 'link-pro' },
 ];
 ---
 
 <!DOCTYPE html>
-<html lang="en" class="wb-fonts">
+<html lang="en" class="wb-fonts" data-wb-base={blogBasePath()}>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{title} — Writebolt Admin</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/svg+xml" href={publicPath('/favicon.svg')} />
 </head>
 <body class="wb-blog">
   <div class="admin-layout">
     <aside class="admin-sidebar">
       <div class="admin-sidebar__brand">
-        <a href="/admin">✦ Writebolt</a>
+        <a href={publicPath('/admin')}>✦ Writebolt</a>
       </div>
       <nav>
         {navItems.map((item) => (
@@ -45,7 +45,7 @@ const navItems = [
         ))}
         <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 1rem 0;" />
         <a href={absoluteUrl('/')} target="_blank">View Site ↗</a>
-        <a href="/api/auth/logout">Log Out</a>
+        <a href={publicPath('/api/auth/logout')}>Log Out</a>
       </nav>
     </aside>
     <div class="admin-main">

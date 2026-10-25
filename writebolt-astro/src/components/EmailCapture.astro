@@ -29,6 +29,7 @@ const buttonText = settings.inline_cta_button_text ?? 'Subscribe';
 </div>
 
 <script>
+  import { clientPath } from '../lib/client-path';
   const form = document.querySelector<HTMLFormElement>('[data-ec-form]');
   if (form && !form.dataset.bound) {
     form.dataset.bound = 'true';
@@ -42,7 +43,7 @@ const buttonText = settings.inline_cta_button_text ?? 'Subscribe';
       submit && (submit.disabled = true);
       if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
       try {
-        const res = await fetch('/api/newsletter/subscribe', {
+        const res = await fetch(clientPath('/api/newsletter/subscribe'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
