@@ -4,25 +4,35 @@
  * Writebolt Blog setup wizard.
  *
  *   npm run setup
- *     Standalone: asks for the Supabase project, then the admin username and password.
- *   npm run setup -- --addon --host /path/to/existing-site
- *     Add-on: copies Supabase from the existing Astro site, then asks for the admin username and password.
- *     The blog runs inside that site. This does not start a second server.
+ *     Inside an Astro site (writebolt-astro/ is a subfolder): uses that site's env,
+ *     creates the Supabase tables, and asks for the blog title, admin username, and password.
+ *   npm run setup -- --standalone
+ *     This folder is the whole site. Writes writebolt-astro/.env.
  *   npm run setup -- --seed
- *     Seeds again using the .env already written. No questions.
+ *     Seeds again. No questions.
  *
  * Newsletter is not part of setup. Turn it on later in Admin → Settings.
  */
 
 import { createClient } from '@supabase/supabase-js';
 import { copyFileSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'fs';
-import { dirname, resolve, join } from 'path';
+import { basename, dirname, resolve, join } from 'path';
 import { fileURLToPath } from 'url';
 import { randomBytes } from 'crypto';
 import readline from 'readline';
+import { connectionCandidates } from './db-url.mjs';
+import { applyFirstWorking, blogTablesReady, waitForBlogTables } from './schema.mjs';
+import {
+  configHasAdapter,
+  ensureWriteboltIntegration,
+  findAstroConfig,
+  findLayout,
+  hasDefaultSlot,
+  integrationImportPath,
+} from './host-config.mjs';
 
-const root = process.cwd();
 const scriptDir = dirname(fileURLToPath(import.meta.url));
+const root = dirname(scriptDir);
 const envPath = join(root, '.env');
 
 const URL_KEYS = ['SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'PUBLIC_SUPABASE_URL', 'VITE_SUPABASE_URL'];
@@ -45,6 +55,9 @@ function parseArgs(argv) {
     adminUser: '',
     password: '',
     serviceRole: '',
+    dbPassword: '',
+    dbUrl: '',
+    standalone: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -65,6 +78,11 @@ function parseArgs(argv) {
     else if (arg.startsWith('--admin-password=')) args.password = arg.slice('--admin-password='.length);
     else if (arg === '--service-role') args.serviceRole = argv[++i] || '';
     else if (arg.startsWith('--service-role=')) args.serviceRole = arg.slice('--service-role='.length);
+    else if (arg === '--db-password') args.dbPassword = argv[++i] || '';
+    else if (arg.startsWith('--db-password=')) args.dbPassword = arg.slice('--db-password='.length);
+    else if (arg === '--db-url') args.dbUrl = argv[++i] || '';
+    else if (arg.startsWith('--db-url=')) args.dbUrl = arg.slice('--db-url='.length);
+    else if (arg === '--standalone') args.standalone = true;
   }
   return args;
 }
@@ -74,13 +92,14 @@ function printHelp() {
 Writebolt Blog — setup wizard
 
   npm run setup
-      Standalone blog. Asks for the Supabase project and an admin username and password.
+      Add the blog to the Astro site that contains this folder. Uses that site's env.
+      Asks for the blog title, admin username, and admin password, then creates the tables.
 
-  npm run setup -- --addon --host /path/to/existing-site --site-url https://example.com --site-name "Example"
-      Add-on blog on an Astro site. Copies Supabase from that site. The blog runs in the site's own server.
+  npm run setup -- --standalone
+      This folder is the whole website. Writes .env here.
 
   npm run setup -- --seed
-      Seed the database again from the current .env. Does not ask questions.
+      Seed the database again. Does not ask questions.
 
 Newsletter is configured later in Admin → Settings.
 `);
@@ -152,24 +171,29 @@ function isLocalUrl(value) {
   return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/i.test(String(value || ''));
 }
 
-function detectSiteUrl(hostDir, envVars) {
+function detectSiteUrl(hostDir, envVars, { allowAppUrl = false } = {}) {
   const explicit = firstReal(envVars, SITE_KEYS);
   if (explicit && !isLocalUrl(explicit)) return explicit;
+  if (!hostDir) return allowAppUrl ? nonLocalAppUrl(envVars) : '';
   for (const name of ['astro.config.mjs', 'astro.config.ts', 'astro.config.js']) {
     const file = join(hostDir, name);
     if (!existsSync(file)) continue;
     const source = readFileSync(file, 'utf8');
     const site = source.match(/\bsite\s*:\s*['"](https?:\/\/[^'"]+)['"]/);
-    if (site) return site[1].replace(/\/$/, '');
+    if (site && !isLocalUrl(site[1])) return site[1].replace(/\/$/, '');
   }
   for (const name of ['src/lib/site.ts', 'src/lib/site.js', 'src/consts.ts']) {
     const file = join(hostDir, name);
     if (!existsSync(file)) continue;
     const source = readFileSync(file, 'utf8');
     const named = source.match(/\bSITE_URL\s*=\s*['"](https?:\/\/[^'"]+)['"]/);
-    if (named) return named[1].replace(/\/$/, '');
+    if (named && !isLocalUrl(named[1])) return named[1].replace(/\/$/, '');
   }
-  if (explicit) return explicit;
+  if (allowAppUrl) return nonLocalAppUrl(envVars);
+  return '';
+}
+
+function nonLocalAppUrl(envVars) {
   const appUrl = firstReal(envVars, APP_URL_KEYS);
   return appUrl && !isLocalUrl(appUrl) ? appUrl : '';
 }
@@ -230,14 +254,6 @@ function ensureRobots(hostDir, siteUrl) {
   text = `${text.replace(/\s*$/, '')}\nSitemap: ${news}\n`;
   writeFileSync(file, text);
   return true;
-}
-
-function hostEnvPath(hostDir) {
-  for (const name of ['.env.local', '.env']) {
-    const file = join(hostDir, name);
-    if (existsSync(file)) return file;
-  }
-  return join(hostDir, '.env');
 }
 
 function envLine(key, value) {
@@ -302,30 +318,26 @@ function adminUrls(siteUrl, basePath) {
   };
 }
 
-function printDone({ siteUrl, basePath, addon, seeded, username, password, generatedPassword }) {
+function printDone({ siteUrl, basePath, addon, seeded, username, password, generatedPassword, reused, envFile, integrationNote }) {
   const urls = adminUrls(siteUrl, basePath);
   console.log('\n── Next steps ─────────────────────────────────────────');
   if (!seeded) {
-    console.log('The database is not ready yet. In the Supabase SQL editor, run:');
-    console.log('  supabase/001_initial_schema.sql');
-    console.log('Then seed again with:  npm run setup -- --seed');
+    console.log('The blog name was not saved. Run npm run setup -- --seed once the database is reachable.');
   }
-  console.log(`Admin: ${urls.login}`);
-  console.log(`First article: ${urls.article}`);
   if (generatedPassword) {
     console.log(`Username: ${username}`);
     console.log(`Password: ${password}`);
-    console.log('Save that password. It is in the site .env as WRITEBOLT_ADMIN_PASSWORD.');
-  } else {
+  } else if (!reused) {
     console.log('Sign in with the username and password you just set.');
   }
   if (addon) {
-    console.log('The blog runs inside the existing Astro site. Do not start a second server.');
-    console.log('In that site\'s astro.config.mjs:');
-    console.log('  import { writebolt } from \'./writebolt-astro/integration/astro.mjs\';');
-    console.log('  integrations: [writebolt({ layout: \'./src/layouts/Layout.astro\' })]');
-    console.log('Then run npm run dev in the existing site. /blog is part of that server.');
+    console.log(`Blog login is in ${envFile}.`);
+    console.log('That is the site env. There is no separate blog env file.');
+    if (integrationNote) console.log(integrationNote);
+    console.log('In the site folder, run npm run dev, then open /blog and /blog/admin/login.');
+    if (siteUrl && !isLocalUrl(siteUrl)) console.log(`Public admin: ${urls.login}`);
   } else {
+    console.log(`Admin: ${urls.login}`);
     console.log('Start the blog with:  npm run dev');
   }
   console.log('────────────────────────────────────────────────────────\n');
@@ -345,7 +357,7 @@ async function seedDatabase(env, options = {}) {
   const url = env.SUPABASE_URL;
   const key = env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key || isPlaceholder(url) || isPlaceholder(key)) {
-    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env');
+    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
   }
 
   const siteName = options.siteName || env.WRITEBOLT_SITE_NAME || '';
@@ -353,7 +365,6 @@ async function seedDatabase(env, options = {}) {
   const basePath = String(env.BLOG_BASE_PATH || '').trim();
   const addon = options.addon ?? (basePath.length > 0 && basePath !== '/');
   const supabase = createClient(url, key);
-  console.log('⚡ Writebolt Blog Setup\n');
 
   const author = await supabase.from('authors').select('id, name').eq('slug', 'admin').maybeSingle();
   if (author.error) throw new Error(author.error.message);
@@ -395,12 +406,10 @@ async function seedDatabase(env, options = {}) {
   } else {
     const row = settings.data;
     const patch = {};
-    if (addon && row.layout_mode === 'standalone') patch.layout_mode = 'embedded';
+    if (addon && row.layout_mode !== 'embedded') patch.layout_mode = 'embedded';
     if (siteName && (!row.site_name || row.site_name === 'My Blog')) patch.site_name = siteName;
     if (siteDescription && stockDescription(row.site_description)) patch.site_description = siteDescription;
-    if (addon && row.image_storage_provider === 'local' && (!row.site_name || row.site_name === 'My Blog')) {
-      patch.image_storage_provider = 'supabase';
-    }
+    if (addon && row.image_storage_provider !== 'supabase') patch.image_storage_provider = 'supabase';
     if (Object.keys(patch).length) {
       const updated = await supabase.from('site_settings').update(patch).eq('id', row.id);
       if (updated.error) throw new Error(updated.error.message);
@@ -433,38 +442,257 @@ function writeEnv(updates) {
     next.SETTINGS_ENCRYPTION_KEY = randomBytes(32).toString('hex');
     console.log('  ✓ Generated SETTINGS_ENCRYPTION_KEY');
   }
-  writeFileSync(envPath, upsertEnv(base, next), 'utf8');
+  const body = upsertEnv(base, next);
+  writeFileSync(envPath, body, 'utf8');
   console.log('  ✓ Wrote .env');
+  return parseEnv(body);
 }
 
-async function collectSupabase(rl) {
-  console.log('Paste the project URL and API keys from Supabase → Project Settings → API.\n');
-  const url = await askHttp(rl, 'Supabase URL');
-  const anon = await askRequired(rl, 'Supabase anon key: ', true);
-  const service = await askRequired(rl, 'Supabase service role key: ', true);
+function parentAstroHost() {
+  const parent = resolve(root, '..');
+  return findAstroConfig(parent) ? parent : '';
+}
+
+function envFileForSite(hostDir) {
+  let found = '';
+  for (const name of HOST_ENV_FILES) {
+    const file = join(hostDir, name);
+    if (!existsSync(file)) continue;
+    if (firstReal(readEnvFile(file), URL_KEYS)) found = file;
+  }
+  if (found) return found;
+  if (existsSync(join(hostDir, '.env.local'))) return join(hostDir, '.env.local');
+  if (existsSync(join(hostDir, '.env'))) return join(hostDir, '.env');
+  return join(hostDir, '.env.local');
+}
+
+function isGitignored(dir, name) {
+  const gitignore = join(dir, '.gitignore');
+  if (!existsSync(gitignore)) return false;
+  return readFileSync(gitignore, 'utf8').split(/\r?\n/).some((line) => {
+    const pattern = line.trim();
+    if (!pattern || pattern.startsWith('#')) return false;
+    if (pattern === name) return true;
+    if (!pattern.includes('*')) return false;
+    const expression = `^${pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`;
+    return new RegExp(expression).test(name);
+  });
+}
+
+function writeSiteEnv(file, updates) {
+  const current = existsSync(file) ? readFileSync(file, 'utf8') : '# Writebolt blog\n';
+  const existing = parseEnv(current);
+  const next = { ...updates };
+  if (existing.SETTINGS_ENCRYPTION_KEY || next.SETTINGS_ENCRYPTION_KEY) {
+    if (existing.SETTINGS_ENCRYPTION_KEY) delete next.SETTINGS_ENCRYPTION_KEY;
+  } else {
+    next.SETTINGS_ENCRYPTION_KEY = randomBytes(32).toString('hex');
+    console.log('  ✓ Generated SETTINGS_ENCRYPTION_KEY');
+  }
+  const body = upsertEnv(current, next);
+  writeFileSync(file, body);
+  console.log(`  ✓ Saved the blog login in ${file}`);
+  if (!isGitignored(dirname(file), basename(file))) {
+    console.warn(`  · ${basename(file)} is not in .gitignore. Do not commit the admin password.`);
+  }
+  return parseEnv(body);
+}
+
+function siteUpdates({ addon, username, password, siteName, siteDescription, service, url, anon, dbUrl, siteUrl, envVars }) {
+  const updates = {
+    WRITEBOLT_ADMIN_USERNAME: username,
+    WRITEBOLT_ADMIN_PASSWORD: password,
+    WRITEBOLT_SITE_NAME: siteName,
+  };
+  if (siteDescription) updates.WRITEBOLT_SITE_DESCRIPTION = siteDescription;
+  if (addon) updates.BLOG_BASE_PATH = '/blog';
+  if (service && !firstReal(envVars, SERVICE_KEYS)) updates.SUPABASE_SERVICE_ROLE_KEY = service;
+  if (url && !firstReal(envVars, URL_KEYS)) {
+    updates.PUBLIC_SUPABASE_URL = url;
+    updates.PUBLIC_SUPABASE_ANON_KEY = anon;
+  }
+  if (dbUrl && !connectionCandidates(envVars).length) updates.SUPABASE_DB_URL = dbUrl;
+  if (siteUrl && !isLocalUrl(siteUrl) && !firstReal(envVars, SITE_KEYS)) updates.SITE_URL = siteUrl;
+  return updates;
+}
+
+async function ensureDatabase(rl, { interactive, url, serviceKey, envVars, dbPassword, dbUrl }) {
+  const before = await blogTablesReady(url, serviceKey);
+  if (before.ready && !before.legacy) {
+    console.log('  ✓ Blog tables are already in Supabase');
+    return '';
+  }
+  console.log(before.legacy
+    ? 'Updating blog tables from an older schema.'
+    : 'Creating the blog tables in Supabase.');
+
+  let password = dbPassword;
+  let explicit = dbUrl;
+  let askedUri = Boolean(explicit);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const candidates = connectionCandidates(envVars, { supabaseUrl: url, password, explicitUrl: explicit });
+    if (!candidates.length) {
+      if (!interactive) {
+        throw new Error('Creating tables needs the database password. Add DATABASE_URL or SUPABASE_DB_URL to the site env, or re-run with --db-password. The Supabase API keys cannot create tables.');
+      }
+      console.log('The Supabase URL and keys in this site\'s env can read and write rows. Creating tables needs the database password.');
+      console.log('Supabase → Project Settings → Database → Database password.\n');
+      password = await askRequired(rl, 'Database password: ');
+      continue;
+    }
+    try {
+      const used = await applyFirstWorking(candidates);
+      const after = await waitForBlogTables(url, serviceKey);
+      if (!after.ready || after.legacy) {
+        throw new Error('Tables were created, but Supabase has not exposed them to the API yet. Run npm run setup again in a minute.');
+      }
+      console.log('  ✓ Blog tables are ready');
+      return connectionCandidates(envVars).includes(used) ? '' : used;
+    } catch (error) {
+      if (error.code !== 'CONNECT_FAILED') throw error;
+      if (!interactive || askedUri) {
+        throw new Error(`${error.message}\n\nYou can also paste supabase/001_initial_schema.sql into the Supabase SQL editor, then run npm run setup -- --seed.`);
+      }
+      console.log(`\n${error.message}`);
+      console.log('db.<project>.supabase.co is often IPv6-only. Paste the Session pooler URI from Supabase → Project Settings → Database (port 5432).\n');
+      explicit = await askRequired(rl, 'Database URI: ');
+      askedUri = true;
+    }
+  }
+  throw new Error('Could not create the blog tables.');
+}
+
+async function resolveSupabase(rl, { addon, hostDir, interactive, serviceRole, legacy }) {
+  const source = addon ? loadHostEnv(hostDir).vars : legacy;
+  let url = firstReal(source, URL_KEYS) || firstReal(legacy, URL_KEYS);
+  let anon = firstReal(source, ANON_KEYS) || firstReal(legacy, ANON_KEYS);
+  let service = serviceRole || firstReal(source, SERVICE_KEYS) || firstReal(legacy, SERVICE_KEYS);
+  if (addon && url) console.log(`Using Supabase from this site's env:\n  ${url}\n`);
+  if (url && anon && service) return { url, anon, service };
+
+  if (!interactive) {
+    if (!url || !anon) {
+      throw new Error(addon
+        ? 'This site\'s env has no Supabase URL and anon key.'
+        : 'Add SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY to .env, or run setup in a terminal.');
+    }
+    throw new Error('Add SUPABASE_SERVICE_ROLE_KEY to the site env, or re-run with --service-role.');
+  }
+  if (!url || !anon) {
+    console.log(addon
+      ? 'This site\'s env has no Supabase URL and anon key yet.\n'
+      : 'Paste the project URL and API keys from Supabase → Project Settings → API.\n');
+    if (!url) url = await askHttp(rl, 'Supabase URL');
+    if (!anon) anon = await askRequired(rl, 'Supabase anon key: ', true);
+  } else {
+    console.log('The service role key is still needed so the blog admin can save articles.');
+    console.log('Supabase → Project Settings → API → service_role.\n');
+  }
+  if (!service) service = await askRequired(rl, 'Supabase service role key: ', true);
   return { url, anon, service };
 }
 
-function writeHostSecrets(hostDir, secrets) {
-  const file = hostEnvPath(hostDir);
-  const current = existsSync(file) ? readFileSync(file, 'utf8') : '# Writebolt blog\n';
-  const existing = parseEnv(current);
-  const updates = {
-    WRITEBOLT_ADMIN_USERNAME: secrets.username,
-    WRITEBOLT_ADMIN_PASSWORD: secrets.password,
+async function resolveSiteUrl(rl, { interactive, addon, args, hostDir, envVars }) {
+  const detected = (args.siteUrl || detectSiteUrl(hostDir, envVars, { allowAppUrl: !addon }) || '').replace(/\/$/, '');
+  if (detected && !(addon && isLocalUrl(detected))) return detected;
+  if (interactive) {
+    console.log('Canonical links, the sitemap, and RSS need the public site URL.\n');
+    return askHttp(rl, 'Site URL');
+  }
+  if (!addon) return 'http://localhost:4321';
+  throw new Error('Could not find the public site URL. Set site in astro.config, or re-run with --site-url https://yoursite.com');
+}
+
+async function askIdentity(rl, { interactive, args, detectedName, existingUser, existingPassword }) {
+  const keepExisting = existingPassword && !args.password && !args.siteName && !args.adminUser;
+  if (keepExisting && !interactive) {
+    return {
+      siteName: detectedName,
+      username: existingUser || 'admin',
+      password: existingPassword,
+      generatedPassword: false,
+      reused: true,
+    };
+  }
+  if (keepExisting && interactive) {
+    const again = (await question(rl, 'Blog admin is already in the site env. Set the title and password again? [y/N]: ')).toLowerCase();
+    if (again !== 'y' && again !== 'yes') {
+      return {
+        siteName: detectedName,
+        username: existingUser || 'admin',
+        password: existingPassword,
+        generatedPassword: false,
+        reused: true,
+      };
+    }
+  }
+
+  let siteName = args.siteName || detectedName;
+  if (interactive && !args.siteName) {
+    const typed = await question(rl, `Blog title${siteName ? ` [${siteName}]` : ''}: `);
+    siteName = typed || siteName;
+  }
+  if (!siteName) {
+    if (!interactive) throw new Error('Pass --site-name "Your Site".');
+    siteName = await askRequired(rl, 'Blog title: ');
+  }
+  const username = args.adminUser
+    || (interactive ? ((await question(rl, 'Admin username [admin]: ')) || 'admin') : (existingUser || 'admin'));
+  let password = args.password;
+  let generatedPassword = false;
+  if (!password) {
+    if (interactive) password = await askRequired(rl, 'Admin password: ');
+    else {
+      password = randomBytes(9).toString('base64url');
+      generatedPassword = true;
+    }
+  }
+  return { siteName, username, password, generatedPassword, reused: false };
+}
+
+function wireIntegration(hostDir) {
+  const configPath = findAstroConfig(hostDir);
+  const notes = [];
+  if (!configPath) {
+    notes.push('No astro.config was found. Add writebolt() to the site config.');
+    return notes.join('\n');
+  }
+  const layout = findLayout(hostDir);
+  const layoutPath = layout ? `./${layout}` : './src/layouts/Layout.astro';
+  const source = readFileSync(configPath, 'utf8');
+  const result = ensureWriteboltIntegration(source, {
+    importPath: integrationImportPath(root),
+    layoutPath,
+  });
+  if (result.manual) {
+    notes.push(`Add this to ${basename(configPath)}:`);
+    notes.push(`  ${result.importLine}`);
+    notes.push(`  integrations: [${result.call}]`);
+  } else if (result.changed) {
+    writeFileSync(configPath, result.source);
+    console.log(`  ✓ Added writebolt() to ${basename(configPath)}`);
+  } else {
+    console.log('  ✓ writebolt() is already in the Astro config');
+  }
+  if (!layout) notes.push('No layout was found under src/layouts. Pass the site layout to writebolt({ layout }).');
+  else if (!hasDefaultSlot(readFileSync(join(hostDir, layout), 'utf8'))) {
+    notes.push(`${layout} needs a <slot /> where the page body goes, or the blog content will not show.`);
+  }
+  if (!configHasAdapter(result.source)) {
+    notes.push('This site has no server adapter. /blog renders on each request. On Vercel, run npx astro add vercel in the site folder.');
+  }
+  const clash = ['src/pages/blog.astro', 'src/pages/blog'].find((entry) => existsSync(join(hostDir, entry)));
+  if (clash) notes.push(`Remove ${clash}. It would override /blog.`);
+  return notes.join('\n');
+}
+
+function seedInput(env, addon) {
+  return {
+    ...env,
+    SUPABASE_URL: firstReal(env, URL_KEYS),
+    SUPABASE_SERVICE_ROLE_KEY: firstReal(env, SERVICE_KEYS),
+    BLOG_BASE_PATH: addon ? '/blog' : String(env.BLOG_BASE_PATH || ''),
   };
-  if (!firstReal(existing, ['SETTINGS_ENCRYPTION_KEY']) && secrets.encryption) {
-    updates.SETTINGS_ENCRYPTION_KEY = secrets.encryption;
-  }
-  if (!firstReal(existing, SERVICE_KEYS) && secrets.service) {
-    updates.SUPABASE_SERVICE_ROLE_KEY = secrets.service;
-  }
-  if (!firstReal(existing, URL_KEYS) && secrets.url) {
-    updates.PUBLIC_SUPABASE_URL = secrets.url;
-    updates.PUBLIC_SUPABASE_ANON_KEY = secrets.anon;
-  }
-  writeFileSync(file, upsertEnv(current, updates));
-  console.log(`  ✓ Wrote the blog admin login to ${file}`);
 }
 
 function finishHost(hostDir, siteUrl) {
@@ -473,216 +701,162 @@ function finishHost(hostDir, siteUrl) {
   if (ensureRobots(hostDir, siteUrl)) console.log('  ✓ Added the blog news sitemap to public/robots.txt');
 }
 
-async function resolveSupabase(rl, { addon, host, existing, interactive, serviceRole }) {
-  const own = {
-    url: firstReal(existing, ['SUPABASE_URL']),
-    anon: firstReal(existing, ['SUPABASE_ANON_KEY']),
-    service: firstReal(existing, ['SUPABASE_SERVICE_ROLE_KEY']),
-  };
-  if (own.url && own.anon && own.service && !addon) return own;
-
-  if (!addon) {
-    if (!interactive) {
-      throw new Error('Standalone setup needs a terminal, or run again after SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY are in .env.');
-    }
-    return collectSupabase(rl);
-  }
-
-  let hostDir = host;
-  if (!hostDir && interactive) {
-    hostDir = await question(rl, 'Path to the existing site (the folder that has its .env): ');
-  }
-  if (!hostDir || !existsSync(resolve(hostDir))) {
-    if (!interactive) throw new Error('Pass --host with the path to the Astro site.');
-    console.log('\nCould not find that site folder. Enter the Supabase project for this blog.\n');
-    return collectSupabase(rl);
-  }
-
-  const dir = resolve(hostDir);
-  const loaded = loadHostEnv(dir);
-  const siteUrl = detectSiteUrl(dir, loaded.vars);
-  const found = {
-    url: firstReal(loaded.vars, URL_KEYS),
-    anon: firstReal(loaded.vars, ANON_KEYS),
-    service: serviceRole || firstReal(loaded.vars, SERVICE_KEYS),
-    siteUrl,
-    siteName: detectSiteName(dir, loaded.vars, siteUrl),
-    hostDir: dir,
-  };
-
-  if (found.url && found.anon && found.service) {
-    const from = loaded.files[0] || loaded.dir;
-    console.log('Using the Supabase project already configured on the existing site.');
-    console.log(`  ${found.url}`);
-    console.log(`  from ${from}\n`);
-    if (!interactive) return found;
-    const useExisting = (await question(rl, 'Press Enter to use this project, or n to enter a different one: ')).toLowerCase();
-    if (useExisting === 'n' || useExisting === 'no') {
-      const typed = await collectSupabase(rl);
-      return { ...found, ...typed };
-    }
-    return found;
-  }
-
-  if (found.url && found.anon && !found.service) {
-    console.log('Found the Supabase URL and anon key on this site.');
-    console.log(`${found.url}`);
-    console.log('The service role key is still needed so the blog admin can save articles.\n');
-    if (!interactive) {
-      throw new Error('Add SUPABASE_SERVICE_ROLE_KEY to the site .env, or re-run with --service-role. Do not point this at a different app.');
-    }
-    found.service = await askRequired(rl, 'Supabase service role key: ', true);
-    return found;
-  }
-
-  if (!interactive) {
-    throw new Error('This site does not have a Supabase URL and anon key in its .env.');
-  }
-  console.log('This site does not already have a Supabase URL and API keys.');
-  console.log('The blog stores its articles in Supabase, so those values are needed once.\n');
-  const typed = await collectSupabase(rl);
-  return { ...found, ...typed };
-}
-
 async function wizard(args) {
   const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
-  const existing = readEnvFile(envPath);
+  const legacy = readEnvFile(envPath);
   const rl = interactive ? readline.createInterface({ input: process.stdin, output: process.stdout }) : null;
-  console.log('\n⚡ Writebolt Blog — setup wizard\n');
-
   const close = () => {
     if (rl) rl.close();
   };
+  console.log('\n⚡ Writebolt Blog — setup wizard\n');
 
   try {
-    const addon = args.addon || (existing.BLOG_BASE_PATH && existing.BLOG_BASE_PATH !== '/' && existing.BLOG_BASE_PATH !== '');
-    const hasLogin = firstReal(existing, ['ADMIN_PASSWORD', 'WRITEBOLT_ADMIN_PASSWORD']);
-    if (existsSync(envPath) && firstReal(existing, ['SUPABASE_URL']) && hasLogin) {
-      let overwrite = false;
-      if (interactive && !args.siteName && !args.siteUrl) {
-        overwrite = ['y', 'yes'].includes((await question(rl, '.env already exists. Set it up again? [y/N]: ')).toLowerCase());
-      }
-      if (!overwrite) {
-        close();
-        console.log('Keeping the current .env. Seeding with those values.\n');
-        const siteUrl = args.siteUrl || firstReal(existing, SITE_KEYS) || 'http://localhost:4321';
-        if (addon && args.host && existsSync(resolve(args.host))) finishHost(resolve(args.host), siteUrl);
-        let seeded = true;
-        try {
-          await seedDatabase(existing, {
-            addon,
-            siteName: args.siteName || existing.WRITEBOLT_SITE_NAME || '',
-            siteDescription: args.siteDescription || existing.WRITEBOLT_SITE_DESCRIPTION || '',
-          });
-          console.log('\n✅ Setup complete.\n');
-        } catch (err) {
-          seeded = false;
-          console.warn(`\n⚠️  Seed failed: ${err.message}\n`);
-        }
-        printDone({
-          siteUrl,
-          basePath: existing.BLOG_BASE_PATH || (addon ? '/blog' : ''),
-          addon,
-          seeded,
-        });
-        return;
-      }
+    const hostCandidate = args.standalone ? '' : (args.host ? resolve(args.host) : parentAstroHost());
+    if (args.host && !findAstroConfig(hostCandidate)) {
+      throw new Error(`No astro.config in ${hostCandidate}`);
     }
+    if (args.addon && !hostCandidate) throw new Error('Pass --host with the path to the Astro site.');
+    const addon = Boolean(hostCandidate);
+    const hostDir = hostCandidate;
+    const envVars = addon ? loadHostEnv(hostDir).vars : legacy;
+    const envFile = addon ? envFileForSite(hostDir) : envPath;
 
     if (addon) {
-      console.log('Add-on install. Articles will be served at /blog on the existing Astro site.');
-      console.log('Newsletter is turned on later in Admin → Settings.\n');
+      console.log(`Adding the blog to ${hostDir}`);
+      console.log('Articles will be served at /blog on this site\'s dev server.');
+      if (existsSync(envPath)) {
+        console.log('An old writebolt-astro/.env is still here. The site env is what the blog uses. You can delete that file.');
+      }
+      console.log('');
     } else {
-      console.log('Standalone install. Articles will be served at /{slug}.');
-      console.log('Newsletter is turned on later in Admin → Settings.\n');
+      console.log('Standalone blog. Articles will be served at /{slug}.\n');
     }
 
     const supabase = await resolveSupabase(rl, {
       addon,
-      host: args.host,
-      existing,
+      hostDir,
       interactive,
       serviceRole: args.serviceRole,
+      legacy,
     });
-    const detectedUrl = args.siteUrl || supabase.siteUrl || firstReal(existing, SITE_KEYS) || '';
-    let siteUrl = detectedUrl.replace(/\/$/, '');
-    if (interactive) {
-      siteUrl = await askHttp(rl, 'Site URL', siteUrl || 'http://localhost:4321');
-    } else if (!siteUrl || (addon && isLocalUrl(siteUrl))) {
-      throw new Error('Could not find the public site URL. Re-run with --site-url https://yoursite.com');
-    }
-
-    const detectedName = args.siteName || supabase.siteName || detectSiteName(supabase.hostDir || '', {}, siteUrl);
-    let siteName = detectedName;
-    if (interactive) {
-      const typed = await question(rl, `Site name${detectedName ? ` [${detectedName}]` : ''}: `);
-      siteName = typed || detectedName;
-    }
-    if (addon && !siteName) siteName = 'My Blog';
-
-    const username = args.adminUser || (interactive ? (await question(rl, 'Admin username [admin]: ')) : '') || 'admin';
-    let password = args.password;
-    let generatedPassword = false;
-    if (!password) {
-      if (interactive) password = await askRequired(rl, 'Admin password: ');
-      else {
-        password = randomBytes(9).toString('base64url');
-        generatedPassword = true;
-      }
-    }
-    const siteDescription = args.siteDescription || (siteName && siteName !== 'My Blog' ? siteName : '');
+    const dbUrlToSave = await ensureDatabase(rl, {
+      interactive,
+      url: supabase.url,
+      serviceKey: supabase.service,
+      envVars: { ...legacy, ...envVars },
+      dbPassword: args.dbPassword,
+      dbUrl: args.dbUrl,
+    });
+    const siteUrl = await resolveSiteUrl(rl, { interactive, addon, args, hostDir, envVars });
+    const detectedName = args.siteName || detectSiteName(hostDir || root, { ...envVars, ...legacy }, siteUrl);
+    const identity = await askIdentity(rl, {
+      interactive,
+      args,
+      detectedName,
+      existingUser: firstReal(envVars, ['WRITEBOLT_ADMIN_USERNAME', 'ADMIN_USERNAME']) || firstReal(legacy, ['WRITEBOLT_ADMIN_USERNAME', 'ADMIN_USERNAME']),
+      existingPassword: firstReal(envVars, ['WRITEBOLT_ADMIN_PASSWORD', 'ADMIN_PASSWORD']) || firstReal(legacy, ['WRITEBOLT_ADMIN_PASSWORD', 'ADMIN_PASSWORD']),
+    });
+    const siteDescription = args.siteDescription || identity.siteName;
     close();
 
-    const updates = {
-      SUPABASE_URL: supabase.url,
-      SUPABASE_ANON_KEY: supabase.anon,
-      SUPABASE_SERVICE_ROLE_KEY: supabase.service,
-      ADMIN_USERNAME: username,
-      ADMIN_PASSWORD: password,
-      WRITEBOLT_ADMIN_USERNAME: username,
-      WRITEBOLT_ADMIN_PASSWORD: password,
-      WRITEBOLT_SITE_NAME: siteName,
-      SITE_URL: siteUrl,
-      BLOG_BASE_PATH: addon ? '/blog' : '',
-    };
-    if (siteDescription) updates.WRITEBOLT_SITE_DESCRIPTION = siteDescription;
+    const updates = siteUpdates({
+      addon,
+      username: identity.username,
+      password: identity.password,
+      siteName: identity.siteName,
+      siteDescription,
+      service: supabase.service,
+      url: supabase.url,
+      anon: supabase.anon,
+      dbUrl: dbUrlToSave,
+      siteUrl,
+      envVars,
+    });
+    if (!addon) {
+      Object.assign(updates, {
+        SUPABASE_URL: supabase.url,
+        SUPABASE_ANON_KEY: supabase.anon,
+        SUPABASE_SERVICE_ROLE_KEY: supabase.service,
+        ADMIN_USERNAME: identity.username,
+        ADMIN_PASSWORD: identity.password,
+        SITE_URL: siteUrl,
+        BLOG_BASE_PATH: '',
+      });
+    }
 
     console.log('');
-    writeEnv(updates);
-    const written = readEnvFile(envPath);
-    if (addon && supabase.hostDir) {
-      writeHostSecrets(supabase.hostDir, {
-        username,
-        password,
-        service: supabase.service,
-        url: supabase.url,
-        anon: supabase.anon,
-        encryption: written.SETTINGS_ENCRYPTION_KEY,
-      });
-      finishHost(supabase.hostDir, siteUrl);
-    }
+    const written = addon ? writeSiteEnv(envFile, updates) : writeEnv(updates);
+    if (addon) finishHost(hostDir, siteUrl);
+    const integrationNote = addon ? wireIntegration(hostDir) : '';
 
     let seeded = true;
     try {
-      await seedDatabase(written, { addon, siteName, siteDescription });
+      await seedDatabase(seedInput({ ...envVars, ...written, ...updates }, addon), {
+        addon,
+        siteName: identity.siteName,
+        siteDescription,
+      });
       console.log('\n✅ Setup complete.\n');
     } catch (err) {
       seeded = false;
-      console.warn(`\n⚠️  .env is saved. Seed failed: ${err.message}\n`);
+      console.warn(`\n⚠️  The env is saved. Seed failed: ${err.message}\n`);
     }
     printDone({
       siteUrl,
-      basePath: updates.BLOG_BASE_PATH,
+      basePath: addon ? '/blog' : '',
       addon,
       seeded,
-      username,
-      password,
-      generatedPassword,
+      username: identity.username,
+      password: identity.password,
+      generatedPassword: identity.generatedPassword,
+      reused: identity.reused,
+      envFile,
+      integrationNote,
     });
   } catch (err) {
     close();
     throw err;
   }
+}
+
+async function seedAgain(args) {
+  const hostDir = args.standalone ? '' : (args.host ? resolve(args.host) : parentAstroHost());
+  const addon = Boolean(hostDir);
+  const env = {
+    ...process.env,
+    ...readEnvFile(envPath),
+    ...(addon ? loadHostEnv(hostDir).vars : {}),
+  };
+  const url = firstReal(env, URL_KEYS);
+  const service = firstReal(env, SERVICE_KEYS);
+  if (!url || !service) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in the site env.');
+  const ready = await blogTablesReady(url, service);
+  if (!ready.ready || ready.legacy) {
+    const candidates = connectionCandidates(env, {
+      supabaseUrl: url,
+      password: args.dbPassword,
+      explicitUrl: args.dbUrl,
+    });
+    if (!candidates.length) {
+      throw new Error('Creating tables needs the database password. Add DATABASE_URL or SUPABASE_DB_URL to the site env, or re-run with --db-password.');
+    }
+    await applyFirstWorking(candidates);
+    await waitForBlogTables(url, service);
+  }
+  await seedDatabase(seedInput(env, addon), {
+    addon,
+    siteName: args.siteName || env.WRITEBOLT_SITE_NAME || '',
+    siteDescription: args.siteDescription || env.WRITEBOLT_SITE_DESCRIPTION || '',
+  });
+  console.log('\n✅ Setup complete.\n');
+  printDone({
+    siteUrl: args.siteUrl || detectSiteUrl(hostDir, env, { allowAppUrl: !addon }) || 'http://localhost:4321',
+    basePath: addon ? '/blog' : '',
+    addon,
+    seeded: true,
+    reused: true,
+    envFile: addon ? envFileForSite(hostDir) : envPath,
+  });
 }
 
 async function main() {
@@ -692,20 +866,7 @@ async function main() {
     return;
   }
   if (args.seed) {
-    const env = { ...process.env, ...readEnvFile(envPath) };
-    try {
-      await seedDatabase(env);
-      console.log('\n✅ Setup complete.\n');
-      printDone({
-        siteUrl: firstReal(env, SITE_KEYS) || env.SITE_URL || 'http://localhost:4321',
-        basePath: env.BLOG_BASE_PATH || '',
-        addon: Boolean(env.BLOG_BASE_PATH && env.BLOG_BASE_PATH !== '/'),
-        seeded: true,
-      });
-    } catch (err) {
-      console.error(`\nSetup failed: ${err.message}\n`);
-      process.exit(1);
-    }
+    await seedAgain(args);
     return;
   }
   await wizard(args);

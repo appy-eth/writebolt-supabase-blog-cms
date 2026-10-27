@@ -2,10 +2,10 @@
 
 This folder is the blog you install from the [Writebolt repository](https://github.com/appy-eth/writebolt-supabase-blog-cms): [Astro](https://astro.build) + [Supabase](https://supabase.com), with a full admin CMS.
 
-Install it in one of two ways. The full steps are in the repository [README](../README.md).
+Install it in one of two ways. **Start with the copy-paste agent prompts** in the repository [README](../README.md) (requires [Supabase MCP](https://supabase.com/docs/guides/ai-tools/mcp) in Cursor). The agent installs the code and creates the tables; you finish with `npm run setup` in a terminal.
 
-- **Add-on** — add a Supabase-powered blog to an Astro site you already have. `writebolt()` in that site's `astro.config.mjs` serves articles at `/blog/{slug}` on the same dev server and the same deployment.
-- **Standalone** — create a blog or news website on its own. Leave `BLOG_BASE_PATH` empty. Articles are published at `/{slug}`.
+- **Add-on** — blog at `/blog` on an Astro site you already have. Same dev server and deployment.
+- **Standalone** — this folder is the whole site. Articles at `/{slug}`.
 
 > **Looking for Next.js?** That edition is the repository root (`../`). See the main [README](../README.md) → *Next.js edition*.
 
@@ -27,35 +27,12 @@ When adding this blog to an **existing** Astro site, follow **[AGENTS.md](./AGEN
 
 ## Quick Start
 
-### 1. Create a Supabase project
+See the repository [README](../README.md):
 
-Go to [supabase.com](https://supabase.com) and create a new project. Then run **`supabase/001_initial_schema.sql`** in the SQL Editor (this file is **only** for the Astro app).
-
-If you already applied an older slim Astro schema, run **`supabase/002_feature_parity.sql`** as well to add the extra columns and tables.
-
-### 2. Install and run the setup wizard
-
-```bash
-npm install
-npm run setup
-```
-
-Open that in a terminal you can type in. A standalone blog asks for the Supabase project URL, anon key, and service role key, then the admin username and password. An add-on copies Supabase from the existing site and writes the admin login into that site's `.env`:
-
-```bash
-npm run setup -- --addon --host /path/to/your-site --site-url https://yoursite.com --site-name "Your Site"
-```
-
-Then add `writebolt()` to that site's `astro.config.mjs` (see the repository README). Run that site's `npm run dev`. Do not start a second server. The wizard generates `SETTINGS_ENCRYPTION_KEY` if it is missing. Newsletter is configured later in **Admin → Settings**.
-
-### 3. Run
-
-```bash
-npm run dev
-```
-
-- Blog: `http://localhost:4321`
-- Admin: `http://localhost:4321/admin/login`
+1. Connect Supabase MCP in Cursor.
+2. Paste the **add-on** or **standalone** agent prompt into your project chat.
+3. When the agent finishes, run `npm run setup` (or `npm run setup -- --standalone`) in a terminal and answer the wizard yourself.
+4. Run `npm run dev` (from the site root on an add-on).
 
 ## Project Structure
 

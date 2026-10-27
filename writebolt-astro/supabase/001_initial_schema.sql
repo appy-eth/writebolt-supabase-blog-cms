@@ -1,5 +1,6 @@
 -- Writebolt Blog — shared schema (Astro and Next.js).
--- Run this in your Supabase SQL editor. Safe to re-run: uses IF NOT EXISTS.
+-- The setup wizard runs this file. Safe to re-run: uses IF NOT EXISTS.
+-- You can also paste it into the Supabase SQL editor.
 -- Keep in sync with supabase/migrations/001_writebolt_blog_schema.sql.
 
 create extension if not exists "pgcrypto";
